@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mirrors Theme.kt's `surface` token; used only for the widget's RemoteViews loading
+         placeholder, which is shown for a moment before Glance can render actual content. -->
+    <color name="widget_loading_background">#F7F7F5</color>
+</resources>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Minimal 2x2 contribution-grid mark in the Moss accent ramp. -->
+    <path android:fillColor="#A6D8A0" android:pathData="M34,34h18v18h-18z" />
+    <path android:fillColor="#3E8E45" android:pathData="M56,34h18v18h-18z" />
+    <path android:fillColor="#D9EFD3" android:pathData="M34,56h18v18h-18z" />
+    <path android:fillColor="#6BB86A" android:pathData="M56,56h18v18h-18z" />
+</vector>
