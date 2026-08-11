@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!--
+        Window background only, applied before Compose draws its first frame.
+        Compose's Theme.kt (ui/theme/Theme.kt) is the single source of truth for
+        every color used once content is on screen; these two hex values just
+        mirror its light/dark `background` token so there's no flash of white/black.
+    -->
+    <style name="Theme.Momentum" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#FFFFFF</item>
+        <item name="android:statusBarColor">#FFFFFF</item>
+        <item name="android:navigationBarColor">#FFFFFF</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">true</item>
+    </style>
+</resources>
