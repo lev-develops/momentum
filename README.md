@@ -12,7 +12,9 @@ An offline-first Android habit tracker. Native Kotlin + Jetpack Compose, no back
   local-midnight widget rollover)
 - Single module, MVVM: `data/`, `domain/`, `ui/`, `widget/`, `reminder/`
 
-`minSdk 26`, `targetSdk 37`, `compileSdk 37`. Gradle Kotlin DSL with a version catalog
+`minSdk 26`, `targetSdk 36`, `compileSdk 36` (dropped from the originally-specified 37, which
+isn't an installable SDK platform yet — bump back to 37 once it's available). Gradle Kotlin DSL
+with a version catalog
 (`gradle/libs.versions.toml`).
 
 ## Structure
