@@ -37,8 +37,8 @@ fun ContributionGridCanvas(
         scrollState.scrollTo(scrollState.maxValue)
     }
 
-    val totalWidth = grid.weeks * (GridCellSize + GridCellGap) - GridCellGap
-    val totalHeight = 7 * (GridCellSize + GridCellGap) - GridCellGap
+    val totalWidth = (GridCellSize + GridCellGap) * grid.weeks - GridCellGap
+    val totalHeight = (GridCellSize + GridCellGap) * 7 - GridCellGap
 
     Row(modifier = modifier.horizontalScroll(scrollState)) {
         Canvas(
