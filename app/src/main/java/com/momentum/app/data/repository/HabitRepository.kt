@@ -1,5 +1,7 @@
 package com.momentum.app.data.repository
 
+import androidx.room.RoomDatabase
+import androidx.room.withTransaction
 import com.momentum.app.data.db.dao.CompletionDao
 import com.momentum.app.data.db.dao.HabitDao
 import com.momentum.app.data.db.mapper.toDomain
@@ -42,6 +44,7 @@ interface HabitRepository {
 class HabitRepositoryImpl(
     private val habitDao: HabitDao,
     private val completionDao: CompletionDao,
+    private val database: RoomDatabase,
     private val clock: Clock = Clock.systemDefaultZone(),
 ) : HabitRepository {
 
@@ -97,7 +100,7 @@ class HabitRepositoryImpl(
 
     override suspend fun setArchived(habitId: Long, archived: Boolean) {
         val habit = habitDao.getById(habitId) ?: return
-        habitDao.update(habit.copy(archived = archived))
+        habitDao.update(habit.copy(archived = archived, updatedAtEpochMillis = Instant.now(clock).toEpochMilli()))
     }
 
     override suspend fun reorder(orderedHabitIds: List<Long>) {
@@ -105,9 +108,13 @@ class HabitRepositoryImpl(
     }
 
     override suspend fun replaceAllData(habits: List<Habit>, completions: List<Completion>) {
-        completionDao.deleteAll()
-        habitDao.deleteAll()
-        habitDao.upsertAll(habits.map { it.toEntity() })
-        completionDao.insertAll(completions.map { it.toEntity() })
+        // Wrapped in a single transaction so a crash or error partway through (e.g. a malformed
+        // row) rolls back instead of leaving the database wiped with nothing restored.
+        database.withTransaction {
+            completionDao.deleteAll()
+            habitDao.deleteAll()
+            habitDao.upsertAll(habits.map { it.toEntity() })
+            completionDao.insertAll(completions.map { it.toEntity() })
+        }
     }
 }

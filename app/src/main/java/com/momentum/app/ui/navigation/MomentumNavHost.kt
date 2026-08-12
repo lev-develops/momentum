@@ -21,6 +21,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.momentum.app.AppContainer
+import com.momentum.app.ui.account.AccountScreen
 import com.momentum.app.ui.addedit.AddEditHabitScreen
 import com.momentum.app.ui.detail.HabitDetailScreen
 import com.momentum.app.ui.insights.InsightsScreen
@@ -32,6 +33,7 @@ object Routes {
     const val INSIGHTS = "insights"
     const val DETAIL = "detail/{habitId}"
     const val ADD_EDIT = "addEdit?habitId={habitId}"
+    const val ACCOUNT = "account"
     const val ARG_HABIT_ID = "habitId"
 
     fun detail(habitId: Long) = "detail/$habitId"
@@ -65,6 +67,13 @@ fun MomentumNavHost(container: AppContainer) {
                     container = container,
                     onHabitClick = { habitId -> navController.navigate(Routes.detail(habitId)) },
                     onAddHabit = { navController.navigate(Routes.addEdit()) },
+                    onAccount = { navController.navigate(Routes.ACCOUNT) },
+                )
+            }
+            composable(Routes.ACCOUNT) {
+                AccountScreen(
+                    container = container,
+                    onBack = { navController.popBackStack() },
                 )
             }
             composable(Routes.INSIGHTS) {

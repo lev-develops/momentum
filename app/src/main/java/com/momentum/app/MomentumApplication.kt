@@ -3,6 +3,7 @@ package com.momentum.app
 import android.app.Application
 import com.momentum.app.reminder.MaintenanceWorker
 import com.momentum.app.reminder.NotificationHelper
+import com.momentum.app.sync.SyncWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -22,5 +23,6 @@ class MomentumApplication : Application() {
 
         applicationScope.launch { container.reminderScheduler.scheduleMidnightRollover() }
         MaintenanceWorker.enqueuePeriodic(this)
+        SyncWorker.enqueuePeriodic(this)
     }
 }

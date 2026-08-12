@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -101,7 +102,9 @@ fun AddEditHabitScreen(
         },
     ) { padding ->
         if (uiState.isLoading) {
-            Box(Modifier.fillMaxSize().padding(padding))
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = colors.textPrimary)
+            }
             return@Scaffold
         }
 
@@ -115,9 +118,11 @@ fun AddEditHabitScreen(
         ) {
             OutlinedTextField(
                 value = uiState.name,
-                onValueChange = viewModel::updateName,
+                onValueChange = { if (it.length <= MAX_HABIT_NAME_LENGTH + 20) viewModel.updateName(it) },
                 label = { Text("Name") },
                 singleLine = true,
+                isError = uiState.nameError != null,
+                supportingText = uiState.nameError?.let { error -> { Text(error) } },
                 modifier = Modifier.fillMaxWidth(),
             )
 

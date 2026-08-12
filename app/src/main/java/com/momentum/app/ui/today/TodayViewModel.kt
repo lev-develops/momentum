@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.momentum.app.AppContainer
 import com.momentum.app.domain.model.Habit
 import com.momentum.app.domain.streak.StreakCalculator
+import com.momentum.app.util.currentDateFlow
 import java.time.LocalDate
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -34,8 +35,8 @@ class TodayViewModel(private val container: AppContainer) : ViewModel() {
     val uiState: StateFlow<TodayUiState> = combine(
         repository.observeActiveHabits(),
         repository.observeCompletionsByHabit(),
-    ) { habits, completionsByHabit ->
-        val today = LocalDate.now(container.clock)
+        currentDateFlow(container.clock),
+    ) { habits, completionsByHabit, today ->
         val items = habits.map { habit ->
             val dates = completionsByHabit[habit.id].orEmpty().map { it.date }.toSet()
             TodayHabitItem(

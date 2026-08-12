@@ -30,6 +30,7 @@ data class HabitDto(
     val sortOrder: Int,
     val createdAt: String,
     val archived: Boolean,
+    val updatedAt: String? = null,
 )
 
 @Serializable
@@ -51,20 +52,25 @@ fun Habit.toDto(): HabitDto = HabitDto(
     sortOrder = sortOrder,
     createdAt = createdAt.toString(),
     archived = archived,
+    updatedAt = updatedAt.toString(),
 )
 
-fun HabitDto.toDomain(): Habit = Habit(
-    id = id,
-    name = name,
-    iconKey = runCatching { HabitIcon.valueOf(iconKey) }.getOrDefault(HabitIcon.Default),
-    colorKey = runCatching { HabitColor.valueOf(colorKey) }.getOrDefault(HabitColor.Default),
-    frequency = runCatching { HabitFrequency.valueOf(frequency) }.getOrDefault(HabitFrequency.DAILY),
-    targetDaysPerWeek = targetDaysPerWeek,
-    reminderTime = reminderTime?.let { LocalTime.parse(it) },
-    sortOrder = sortOrder,
-    createdAt = runCatching { Instant.parse(createdAt) }.getOrDefault(Instant.now()),
-    archived = archived,
-)
+fun HabitDto.toDomain(): Habit {
+    val parsedCreatedAt = runCatching { Instant.parse(createdAt) }.getOrDefault(Instant.now())
+    return Habit(
+        id = id,
+        name = name,
+        iconKey = runCatching { HabitIcon.valueOf(iconKey) }.getOrDefault(HabitIcon.Default),
+        colorKey = runCatching { HabitColor.valueOf(colorKey) }.getOrDefault(HabitColor.Default),
+        frequency = runCatching { HabitFrequency.valueOf(frequency) }.getOrDefault(HabitFrequency.DAILY),
+        targetDaysPerWeek = targetDaysPerWeek,
+        reminderTime = reminderTime?.let { LocalTime.parse(it) },
+        sortOrder = sortOrder,
+        createdAt = parsedCreatedAt,
+        archived = archived,
+        updatedAt = updatedAt?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: parsedCreatedAt,
+    )
+}
 
 fun Completion.toDto(): CompletionDto = CompletionDto(
     id = id,

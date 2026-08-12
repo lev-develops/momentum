@@ -19,6 +19,7 @@ fun HabitEntity.toDomain(): Habit = Habit(
     sortOrder = sortOrder,
     createdAt = Instant.ofEpochMilli(createdAtEpochMillis),
     archived = archived,
+    updatedAt = Instant.ofEpochMilli(updatedAtEpochMillis),
 )
 
 fun Habit.toEntity(): HabitEntity = HabitEntity(
@@ -32,6 +33,7 @@ fun Habit.toEntity(): HabitEntity = HabitEntity(
     sortOrder = sortOrder,
     createdAtEpochMillis = createdAt.toEpochMilli(),
     archived = archived,
+    updatedAtEpochMillis = updatedAt.toEpochMilli(),
 )
 
 fun CompletionEntity.toDomain(): Completion = Completion(

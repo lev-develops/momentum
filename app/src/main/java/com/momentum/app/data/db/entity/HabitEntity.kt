@@ -19,4 +19,5 @@ data class HabitEntity(
     val sortOrder: Int,
     val createdAtEpochMillis: Long,
     val archived: Boolean,
+    val updatedAtEpochMillis: Long = createdAtEpochMillis,
 )

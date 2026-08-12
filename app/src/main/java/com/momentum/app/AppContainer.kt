@@ -8,6 +8,8 @@ import com.momentum.app.data.export.DataExportManager
 import com.momentum.app.data.repository.HabitRepository
 import com.momentum.app.data.repository.HabitRepositoryImpl
 import com.momentum.app.reminder.ReminderScheduler
+import com.momentum.app.sync.AuthManager
+import com.momentum.app.sync.CloudSyncRepository
 import java.time.Clock
 
 /** Hand-rolled DI container — the app is a single module with no Hilt/Dagger dependency. */
@@ -22,6 +24,7 @@ class AppContainer(context: Context) {
     val habitRepository: HabitRepository = HabitRepositoryImpl(
         habitDao = database.habitDao(),
         completionDao = database.completionDao(),
+        database = database,
         clock = clock,
     )
 
@@ -35,6 +38,15 @@ class AppContainer(context: Context) {
     )
 
     val reminderScheduler = ReminderScheduler(context)
+
+    /** Cloud backup/sync — optional. [AuthManager.isConfigured] is false until a Firebase
+     * project's google-services.json is added, in which case these are safe no-ops. */
+    val authManager = AuthManager(context)
+
+    val cloudSyncRepository = CloudSyncRepository(
+        repository = habitRepository,
+        authManager = authManager,
+    )
 
     suspend fun refreshWidgets() {
         com.momentum.app.widget.MomentumWidget.refreshAll(appContext)
