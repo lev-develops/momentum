@@ -20,12 +20,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.CloudSync
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -57,6 +59,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.momentum.app.AppContainer
 import com.momentum.app.ui.components.EmptyState
+import com.momentum.app.ui.components.PermissionsBanner
 import com.momentum.app.ui.components.imageVector
 import com.momentum.app.ui.components.rememberExportLauncher
 import com.momentum.app.ui.components.rememberImportLauncher
@@ -72,6 +75,7 @@ fun TodayScreen(
     container: AppContainer,
     onHabitClick: (Long) -> Unit,
     onAddHabit: () -> Unit,
+    onAccount: () -> Unit,
 ) {
     val viewModel: TodayViewModel = viewModel(
         factory = viewModelFactory { initializer { TodayViewModel(container) } },
@@ -121,6 +125,14 @@ fun TodayScreen(
                                 importLauncher()
                             },
                         )
+                        DropdownMenuItem(
+                            text = { Text("Cloud sync") },
+                            leadingIcon = { Icon(Icons.Rounded.CloudSync, contentDescription = null) },
+                            onClick = {
+                                menuExpanded = false
+                                onAccount()
+                            },
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -130,22 +142,33 @@ fun TodayScreen(
             )
         },
     ) { padding ->
-        if (uiState.isLoading) {
-            Box(Modifier.fillMaxSize().padding(padding))
-        } else if (uiState.habits.isEmpty()) {
-            EmptyState(
-                title = "No habits yet",
-                message = "Add your first habit to start building momentum.",
-                modifier = Modifier.fillMaxSize().padding(padding),
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            PermissionsBanner(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
             )
-        } else {
-            ReorderableHabitList(
-                items = uiState.habits,
-                modifier = Modifier.fillMaxSize().padding(padding),
-                onToggle = viewModel::toggle,
-                onClick = onHabitClick,
-                onReorder = viewModel::reorder,
-            )
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                if (uiState.isLoading) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = colors.textPrimary)
+                    }
+                } else if (uiState.habits.isEmpty()) {
+                    EmptyState(
+                        title = "No habits yet",
+                        message = "Add your first habit to start building momentum.",
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    ReorderableHabitList(
+                        items = uiState.habits,
+                        modifier = Modifier.fillMaxSize(),
+                        onToggle = viewModel::toggle,
+                        onClick = onHabitClick,
+                        onReorder = viewModel::reorder,
+                    )
+                }
+            }
         }
     }
 }

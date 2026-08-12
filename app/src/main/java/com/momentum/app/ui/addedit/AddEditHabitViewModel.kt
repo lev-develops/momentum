@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+const val MAX_HABIT_NAME_LENGTH = 60
+
 data class AddEditUiState(
     val isNew: Boolean = true,
     val isLoading: Boolean = true,
@@ -25,8 +27,19 @@ data class AddEditUiState(
     val reminderTime: LocalTime? = null,
     val isSaving: Boolean = false,
     val saved: Boolean = false,
+    val otherHabitNames: Set<String> = emptySet(),
 ) {
-    val canSave: Boolean get() = name.isNotBlank()
+    val trimmedName: String get() = name.trim()
+
+    val nameError: String?
+        get() = when {
+            trimmedName.isEmpty() -> null
+            trimmedName.length > MAX_HABIT_NAME_LENGTH -> "Keep it under $MAX_HABIT_NAME_LENGTH characters"
+            trimmedName.lowercase() in otherHabitNames -> "You already have a habit named this"
+            else -> null
+        }
+
+    val canSave: Boolean get() = trimmedName.isNotEmpty() && trimmedName.length <= MAX_HABIT_NAME_LENGTH && nameError == null
 }
 
 class AddEditHabitViewModel(private val container: AppContainer, private val habitId: Long?) : ViewModel() {
@@ -39,10 +52,15 @@ class AddEditHabitViewModel(private val container: AppContainer, private val hab
     private var originalHabit: Habit? = null
 
     init {
-        if (habitId == null) {
-            _uiState.value = _uiState.value.copy(isLoading = false)
-        } else {
-            viewModelScope.launch {
+        viewModelScope.launch {
+            val otherNames = repository.getAllHabitsOnce()
+                .filter { it.id != habitId }
+                .map { it.name.trim().lowercase() }
+                .toSet()
+
+            if (habitId == null) {
+                _uiState.value = _uiState.value.copy(isLoading = false, otherHabitNames = otherNames)
+            } else {
                 val habit = repository.getHabit(habitId)
                 originalHabit = habit
                 if (habit != null) {
@@ -55,9 +73,10 @@ class AddEditHabitViewModel(private val container: AppContainer, private val hab
                         frequency = habit.frequency,
                         targetDaysPerWeek = habit.targetDaysPerWeek,
                         reminderTime = habit.reminderTime,
+                        otherHabitNames = otherNames,
                     )
                 } else {
-                    _uiState.value = _uiState.value.copy(isLoading = false)
+                    _uiState.value = _uiState.value.copy(isLoading = false, otherHabitNames = otherNames)
                 }
             }
         }
@@ -108,6 +127,7 @@ class AddEditHabitViewModel(private val container: AppContainer, private val hab
                 sortOrder = existing?.sortOrder ?: repository.getAllHabitsOnce().size,
                 createdAt = existing?.createdAt ?: Instant.now(container.clock),
                 archived = existing?.archived ?: false,
+                updatedAt = Instant.now(container.clock),
             )
 
             val savedId = if (existing == null) repository.addHabit(habit) else {

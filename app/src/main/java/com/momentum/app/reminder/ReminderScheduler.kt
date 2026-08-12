@@ -90,7 +90,13 @@ class ReminderScheduler(private val context: Context, private val clock: Clock =
         return candidate.atZone(zone).toInstant().toEpochMilli()
     }
 
-    private fun reminderRequestCode(habitId: Long): Int = (REMINDER_REQUEST_CODE_BASE + habitId).toInt()
+    /**
+     * Folds the full 64-bit habit id into the request code instead of truncating it, so ids
+     * that differ only in their high bits (anything a plain `.toInt()` cast would collide on)
+     * still land on distinct request codes and don't stomp each other's [PendingIntent].
+     */
+    private fun reminderRequestCode(habitId: Long): Int =
+        REMINDER_REQUEST_CODE_BASE + (habitId xor (habitId ushr 32)).toInt()
 
     companion object {
         const val ACTION_REMINDER = "com.momentum.app.action.HABIT_REMINDER"

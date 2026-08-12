@@ -30,6 +30,7 @@ object InsightsCalculator {
                 completionsThisMonth = 0,
                 completionsLastMonth = 0,
                 monthOverMonthDelta = 0,
+                activeHabitCount = habits.size,
             )
         }
 
@@ -45,6 +46,7 @@ object InsightsCalculator {
 
         var longestStreak = 0
         var longestStreakHabitName: String? = null
+        var completionRateSum = 0f
         for (habit in habits) {
             val dates = completionsByHabit[habit.id].orEmpty().map { it.date }.toSet()
             val best = StreakCalculator.bestStreak(dates, habit.frequency, habit.targetDaysPerWeek, today)
@@ -52,7 +54,15 @@ object InsightsCalculator {
                 longestStreak = best
                 longestStreakHabitName = habit.name
             }
+            completionRateSum += StreakCalculator.completionRate(
+                dates,
+                habit.createdAt.atZone(zone).toLocalDate(),
+                habit.frequency,
+                habit.targetDaysPerWeek,
+                today,
+            )
         }
+        val overallCompletionRate = if (habits.isNotEmpty()) completionRateSum / habits.size else 0f
 
         val thisMonth = YearMonth.from(today)
         val lastMonth = thisMonth.minusMonths(1)
@@ -63,12 +73,15 @@ object InsightsCalculator {
             hasData = true,
             bestWeekday = bestWeekday,
             worstWeekday = worstWeekday,
+            weekdayBreakdown = weekdayStats,
             bestTimeOfDay = bestTimeOfDay,
             longestStreakEver = longestStreak,
             longestStreakHabitName = longestStreakHabitName,
             completionsThisMonth = completionsThisMonth,
             completionsLastMonth = completionsLastMonth,
             monthOverMonthDelta = completionsThisMonth - completionsLastMonth,
+            activeHabitCount = habits.size,
+            overallCompletionRate = overallCompletionRate,
         )
     }
 

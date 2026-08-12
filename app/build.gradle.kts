@@ -6,6 +6,14 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+// Cloud sync (Firebase Auth + Firestore) is entirely optional. The google-services plugin fails
+// the build if google-services.json is missing, so it's only applied when that file exists —
+// drop your Firebase project's google-services.json into app/ to turn cloud sync on.
+val hasGoogleServicesConfig = file("google-services.json").exists()
+if (hasGoogleServicesConfig) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 android {
     namespace = "com.momentum.app"
     compileSdk = 36
@@ -90,6 +98,11 @@ dependencies {
 
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.play.services)
+
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

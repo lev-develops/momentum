@@ -7,6 +7,7 @@ import com.momentum.app.domain.model.Habit
 import com.momentum.app.domain.streak.ContributionGrid
 import com.momentum.app.domain.streak.ContributionGridBuilder
 import com.momentum.app.domain.streak.StreakCalculator
+import com.momentum.app.util.currentDateFlow
 import java.time.LocalDate
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -32,11 +33,11 @@ class HabitDetailViewModel(private val container: AppContainer, private val habi
     val uiState: StateFlow<HabitDetailUiState> = combine(
         repository.observeHabit(habitId),
         repository.observeCompletedDates(habitId),
-    ) { habit, dates ->
+        currentDateFlow(container.clock),
+    ) { habit, dates, today ->
         if (habit == null) {
             HabitDetailUiState(isLoading = false, habit = null)
         } else {
-            val today = LocalDate.now(container.clock)
             HabitDetailUiState(
                 isLoading = false,
                 habit = habit,

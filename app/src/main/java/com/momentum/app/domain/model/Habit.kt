@@ -14,4 +14,7 @@ data class Habit(
     val sortOrder: Int = 0,
     val createdAt: Instant = Instant.now(),
     val archived: Boolean = false,
+    /** Last time this habit's own fields (not its completions) changed; drives last-write-wins
+     * conflict resolution when merging with cloud sync. */
+    val updatedAt: Instant = createdAt,
 )

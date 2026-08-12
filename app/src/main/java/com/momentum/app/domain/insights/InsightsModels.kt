@@ -15,10 +15,13 @@ data class InsightsSummary(
     val hasData: Boolean,
     val bestWeekday: WeekdayStat?,
     val worstWeekday: WeekdayStat?,
+    val weekdayBreakdown: List<WeekdayStat> = emptyList(),
     val bestTimeOfDay: TimeOfDayBucket?,
     val longestStreakEver: Int,
     val longestStreakHabitName: String?,
     val completionsThisMonth: Int,
     val completionsLastMonth: Int,
     val monthOverMonthDelta: Int,
+    val activeHabitCount: Int = 0,
+    val overallCompletionRate: Float = 0f,
 )
