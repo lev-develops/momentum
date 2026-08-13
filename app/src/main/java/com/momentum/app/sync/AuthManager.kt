@@ -31,6 +31,9 @@ class AuthManager(context: Context) {
 
     val currentUser: FirebaseUser? get() = auth?.currentUser
 
+    /** Best-effort: reflects the state as of the last sign-in/reload, not a live check. */
+    val isEmailVerified: Boolean get() = currentUser?.isEmailVerified ?: false
+
     fun authStateFlow(): Flow<FirebaseUser?> = callbackFlow {
         val firebaseAuth = auth
         if (firebaseAuth == null) {
@@ -57,5 +60,18 @@ class AuthManager(context: Context) {
 
     fun signOut() {
         auth?.signOut()
+    }
+
+    suspend fun sendEmailVerification(): Result<Unit> = runCatching {
+        val user = auth?.currentUser ?: error("Not signed in")
+        user.sendEmailVerification().await()
+        Unit
+    }
+
+    /** Refreshes [currentUser]'s cached fields (e.g. [isEmailVerified]) from the server. */
+    suspend fun reloadCurrentUser(): Result<Unit> = runCatching {
+        val user = auth?.currentUser ?: error("Not signed in")
+        user.reload().await()
+        Unit
     }
 }

@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 data class AccountUiState(
     val isConfigured: Boolean = false,
     val signedInEmail: String? = null,
+    val isEmailVerified: Boolean = true,
     val emailField: String = "",
     val passwordField: String = "",
     val isBusy: Boolean = false,
@@ -28,11 +29,11 @@ class AccountViewModel(private val container: AppContainer) : ViewModel() {
 
     private val _formState = MutableStateFlow(AccountUiState(isConfigured = auth.isConfigured))
     val uiState: StateFlow<AccountUiState> = combine(_formState, auth.authStateFlow()) { form, user ->
-        form.copy(signedInEmail = user?.email)
+        form.copy(signedInEmail = user?.email, isEmailVerified = user?.isEmailVerified ?: true)
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
-        _formState.value.copy(signedInEmail = auth.currentUser?.email),
+        _formState.value.copy(signedInEmail = auth.currentUser?.email, isEmailVerified = auth.isEmailVerified),
     )
 
     fun updateEmail(value: String) {
@@ -50,6 +51,18 @@ class AccountViewModel(private val container: AppContainer) : ViewModel() {
     fun signOut() {
         auth.signOut()
         _formState.value = _formState.value.copy(statusMessage = "Signed out", isError = false)
+    }
+
+    fun resendVerification() {
+        if (_formState.value.isBusy) return
+        _formState.value = _formState.value.copy(isBusy = true, statusMessage = null)
+        viewModelScope.launch {
+            val result = auth.sendEmailVerification()
+            _formState.value = result.fold(
+                onSuccess = { _formState.value.copy(isBusy = false, isError = false, statusMessage = "Verification email sent") },
+                onFailure = { _formState.value.copy(isBusy = false, isError = true, statusMessage = it.message ?: "Couldn't send verification email") },
+            )
+        }
     }
 
     fun syncNow() {

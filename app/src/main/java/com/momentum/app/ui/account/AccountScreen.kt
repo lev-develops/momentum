@@ -91,7 +91,12 @@ fun AccountScreen(container: AppContainer, onBack: () -> Unit) {
 
             val email = uiState.signedInEmail
             if (email != null) {
-                SignedInSection(email = email, isBusy = uiState.isBusy, viewModel = viewModel)
+                SignedInSection(
+                    email = email,
+                    isEmailVerified = uiState.isEmailVerified,
+                    isBusy = uiState.isBusy,
+                    viewModel = viewModel,
+                )
             } else {
                 SignedOutSection(uiState = uiState, viewModel = viewModel)
             }
@@ -108,7 +113,7 @@ fun AccountScreen(container: AppContainer, onBack: () -> Unit) {
 }
 
 @Composable
-private fun SignedInSection(email: String, isBusy: Boolean, viewModel: AccountViewModel) {
+private fun SignedInSection(email: String, isEmailVerified: Boolean, isBusy: Boolean, viewModel: AccountViewModel) {
     val colors = LocalMomentumColors.current
     Column(
         modifier = Modifier
@@ -120,6 +125,16 @@ private fun SignedInSection(email: String, isBusy: Boolean, viewModel: AccountVi
     ) {
         Text(text = "Signed in as", style = MaterialTheme.typography.labelMedium, color = colors.textSecondary)
         Text(text = email, style = MaterialTheme.typography.bodyLarge, color = colors.textPrimary)
+        if (!isEmailVerified) {
+            Text(
+                text = "Email not verified yet",
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.textSecondary,
+            )
+            TextButton(onClick = viewModel::resendVerification, enabled = !isBusy) {
+                Text("Resend verification email")
+            }
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(onClick = viewModel::syncNow, enabled = !isBusy) {
                 if (isBusy) {
