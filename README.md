@@ -66,10 +66,13 @@ explains that sync isn't configured; nothing else in the app is affected.
 
 **Known limitations of this v1 scaffold:**
 
-- Habit edits merge last-write-wins by timestamp, but completions merge as a union (a date
-  marked done on either device stays done after syncing). Unchecking a habit on one device while
-  another device syncs from an older, still-checked state can resurrect that completion. A
-  production version would want tombstoned deletes to close that gap.
+- Habit edits merge last-write-wins by timestamp. Deleting a whole habit is tombstoned (recorded
+  locally and pushed to Firestore) so a sync from a device that hasn't caught up won't resurrect
+  it — but completions within a still-existing habit merge as a plain union (a date marked done
+  on either device stays done after syncing). Unchecking a single day on one device while another
+  device syncs from an older, still-checked state can resurrect that one completion. Tombstones
+  are pruned after 180 days, so a device that stays offline longer than that before its first
+  sync back could still resurrect a habit it deleted.
 - Habits and completions are keyed by Room's local autoincrement id, which is only unique
   *per device*. If two devices each create habits before ever syncing, they can land on the same
   id and get merged into one habit on first sync instead of staying separate. Safe for a single

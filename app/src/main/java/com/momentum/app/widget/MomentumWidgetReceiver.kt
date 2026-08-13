@@ -14,9 +14,14 @@ class MomentumWidgetReceiver : GlanceAppWidgetReceiver() {
 
     override fun onDeleted(context: Context, appWidgetIds: IntArray) {
         super.onDeleted(context, appWidgetIds)
+        val pendingResult = goAsync()
         val container = (context.applicationContext as MomentumApplication).container
         CoroutineScope(Dispatchers.IO).launch {
-            appWidgetIds.forEach { container.widgetPrefsDataStore.clear(it) }
+            try {
+                appWidgetIds.forEach { container.widgetPrefsDataStore.clear(it) }
+            } finally {
+                pendingResult.finish()
+            }
         }
     }
 }

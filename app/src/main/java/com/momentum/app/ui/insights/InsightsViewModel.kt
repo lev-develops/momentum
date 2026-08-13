@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.momentum.app.AppContainer
 import com.momentum.app.domain.insights.InsightsCalculator
 import com.momentum.app.domain.insights.InsightsSummary
-import java.time.LocalDate
+import com.momentum.app.util.currentDateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -16,11 +16,12 @@ class InsightsViewModel(container: AppContainer) : ViewModel() {
     val summary: StateFlow<InsightsSummary?> = combine(
         container.habitRepository.observeAllHabits(),
         container.habitRepository.observeCompletionsByHabit(),
-    ) { habits, completionsByHabit ->
+        currentDateFlow(container.clock),
+    ) { habits, completionsByHabit, today ->
         InsightsCalculator.summarize(
             habits = habits.filter { !it.archived },
             completionsByHabit = completionsByHabit,
-            today = LocalDate.now(container.clock),
+            today = today,
             zone = container.clock.zone,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)

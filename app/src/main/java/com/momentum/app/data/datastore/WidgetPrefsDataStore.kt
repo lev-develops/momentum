@@ -30,4 +30,14 @@ class WidgetPrefsDataStore(private val context: Context) {
     suspend fun clear(appWidgetId: Int) {
         context.widgetDataStore.edit { prefs -> prefs.remove(keyFor(appWidgetId)) }
     }
+
+    /** Unbinds every widget instance currently pointing at [habitId], e.g. when it's deleted. */
+    suspend fun clearForHabit(habitId: Long) {
+        context.widgetDataStore.edit { prefs ->
+            val staleKeys = prefs.asMap().keys.filter { key ->
+                key.name.startsWith("widget_habit_") && prefs[key] == habitId
+            }
+            staleKeys.forEach { prefs.remove(it) }
+        }
+    }
 }

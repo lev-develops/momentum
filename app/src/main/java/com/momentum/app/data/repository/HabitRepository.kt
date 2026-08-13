@@ -4,10 +4,12 @@ import androidx.room.RoomDatabase
 import androidx.room.withTransaction
 import com.momentum.app.data.db.dao.CompletionDao
 import com.momentum.app.data.db.dao.HabitDao
+import com.momentum.app.data.db.dao.TombstoneDao
 import com.momentum.app.data.db.mapper.toDomain
 import com.momentum.app.data.db.mapper.toEntity
 import com.momentum.app.domain.model.Completion
 import com.momentum.app.domain.model.Habit
+import com.momentum.app.domain.model.HabitTombstone
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
@@ -39,11 +41,17 @@ interface HabitRepository {
 
     /** Wipes all habits and completions, then inserts the given data (used by JSON import). */
     suspend fun replaceAllData(habits: List<Habit>, completions: List<Completion>)
+
+    /** Records of deleted habits, kept so cloud sync doesn't resurrect them from a stale remote copy. */
+    suspend fun getAllTombstones(): List<HabitTombstone>
+    suspend fun saveTombstones(tombstones: List<HabitTombstone>)
+    suspend fun pruneTombstonesOlderThan(cutoff: Instant)
 }
 
 class HabitRepositoryImpl(
     private val habitDao: HabitDao,
     private val completionDao: CompletionDao,
+    private val tombstoneDao: TombstoneDao,
     private val database: RoomDatabase,
     private val clock: Clock = Clock.systemDefaultZone(),
 ) : HabitRepository {
@@ -96,7 +104,12 @@ class HabitRepositoryImpl(
 
     override suspend fun updateHabit(habit: Habit) = habitDao.update(habit.toEntity())
 
-    override suspend fun deleteHabit(habit: Habit) = habitDao.delete(habit.toEntity())
+    override suspend fun deleteHabit(habit: Habit) {
+        database.withTransaction {
+            habitDao.delete(habit.toEntity())
+            tombstoneDao.upsert(HabitTombstone(habitId = habit.id, deletedAt = Instant.now(clock)).toEntity())
+        }
+    }
 
     override suspend fun setArchived(habitId: Long, archived: Boolean) {
         val habit = habitDao.getById(habitId) ?: return
@@ -116,5 +129,16 @@ class HabitRepositoryImpl(
             habitDao.upsertAll(habits.map { it.toEntity() })
             completionDao.insertAll(completions.map { it.toEntity() })
         }
+    }
+
+    override suspend fun getAllTombstones(): List<HabitTombstone> =
+        tombstoneDao.getAllOnce().map { it.toDomain() }
+
+    override suspend fun saveTombstones(tombstones: List<HabitTombstone>) {
+        tombstoneDao.upsertAll(tombstones.map { it.toEntity() })
+    }
+
+    override suspend fun pruneTombstonesOlderThan(cutoff: Instant) {
+        tombstoneDao.deleteOlderThan(cutoff.toEpochMilli())
     }
 }
