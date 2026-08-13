@@ -148,6 +148,13 @@ fun AddEditHabitScreen(
                 },
                 onTap = { showTimePicker = true },
             )
+
+            SectionLabel("Category")
+            CategoryPicker(
+                value = uiState.category,
+                suggestions = uiState.existingCategories,
+                onValueChange = viewModel::updateCategory,
+            )
         }
     }
 
@@ -295,6 +302,38 @@ private fun FrequencyChip(label: String, selected: Boolean, onClick: () -> Unit)
             .padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
         Text(text = label, style = MaterialTheme.typography.bodyMedium, color = colors.textPrimary)
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CategoryPicker(value: String, suggestions: List<String>, onValueChange: (String) -> Unit) {
+    val colors = LocalMomentumColors.current
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = { if (it.length <= 40) onValueChange(it) },
+            label = { Text("Optional, e.g. Health") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (suggestions.isNotEmpty()) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                suggestions.forEach { category ->
+                    val isSelected = category.equals(value.trim(), ignoreCase = true)
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(if (isSelected) colors.surface else colors.background)
+                            .border(1.dp, if (isSelected) colors.textPrimary else colors.hairline, RoundedCornerShape(20.dp))
+                            .clickable { onValueChange(category) }
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                    ) {
+                        Text(text = category, style = MaterialTheme.typography.bodySmall, color = colors.textPrimary)
+                    }
+                }
+            }
+        }
     }
 }
 

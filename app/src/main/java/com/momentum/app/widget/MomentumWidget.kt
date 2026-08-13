@@ -44,6 +44,7 @@ import com.momentum.app.ui.theme.NeutralTokens
 import java.time.LocalDate
 import kotlin.math.floor
 import kotlin.math.roundToInt
+import kotlinx.coroutines.flow.first
 
 private val CellDp = 8.dp
 private val GapDp = 2.dp
@@ -79,9 +80,11 @@ class MomentumWidget : GlanceAppWidget() {
             .filter { it.habitId == habit.id }
             .map { it.date }
             .toSet()
+        val frozenDates = container.habitRepository.observeFrozenDates(habit.id).first()
+        val streakDates = dates + frozenDates
 
         provideContent {
-            HabitGridContent(habit = habit, completedDates = dates, today = today, appWidgetId = appWidgetId, isDark = isDark)
+            HabitGridContent(habit = habit, completedDates = streakDates, today = today, appWidgetId = appWidgetId, isDark = isDark)
         }
     }
 

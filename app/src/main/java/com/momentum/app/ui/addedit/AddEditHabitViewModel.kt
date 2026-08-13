@@ -25,6 +25,8 @@ data class AddEditUiState(
     val frequency: HabitFrequency = HabitFrequency.DAILY,
     val targetDaysPerWeek: Int = 7,
     val reminderTime: LocalTime? = null,
+    val category: String = "",
+    val existingCategories: List<String> = emptyList(),
     val isSaving: Boolean = false,
     val saved: Boolean = false,
     val otherHabitNames: Set<String> = emptySet(),
@@ -53,13 +55,15 @@ class AddEditHabitViewModel(private val container: AppContainer, private val hab
 
     init {
         viewModelScope.launch {
-            val otherNames = repository.getAllHabitsOnce()
+            val allHabits = repository.getAllHabitsOnce()
+            val otherNames = allHabits
                 .filter { it.id != habitId }
                 .map { it.name.trim().lowercase() }
                 .toSet()
+            val categories = allHabits.map { it.category.trim() }.filter { it.isNotEmpty() }.distinct().sorted()
 
             if (habitId == null) {
-                _uiState.value = _uiState.value.copy(isLoading = false, otherHabitNames = otherNames)
+                _uiState.value = _uiState.value.copy(isLoading = false, otherHabitNames = otherNames, existingCategories = categories)
             } else {
                 val habit = repository.getHabit(habitId)
                 originalHabit = habit
@@ -73,10 +77,12 @@ class AddEditHabitViewModel(private val container: AppContainer, private val hab
                         frequency = habit.frequency,
                         targetDaysPerWeek = habit.targetDaysPerWeek,
                         reminderTime = habit.reminderTime,
+                        category = habit.category,
                         otherHabitNames = otherNames,
+                        existingCategories = categories,
                     )
                 } else {
-                    _uiState.value = _uiState.value.copy(isLoading = false, otherHabitNames = otherNames)
+                    _uiState.value = _uiState.value.copy(isLoading = false, otherHabitNames = otherNames, existingCategories = categories)
                 }
             }
         }
@@ -109,6 +115,10 @@ class AddEditHabitViewModel(private val container: AppContainer, private val hab
         _uiState.value = _uiState.value.copy(reminderTime = time)
     }
 
+    fun updateCategory(category: String) {
+        _uiState.value = _uiState.value.copy(category = category)
+    }
+
     fun save() {
         val state = _uiState.value
         if (!state.canSave || state.isSaving) return
@@ -128,6 +138,8 @@ class AddEditHabitViewModel(private val container: AppContainer, private val hab
                 createdAt = existing?.createdAt ?: Instant.now(container.clock),
                 archived = existing?.archived ?: false,
                 updatedAt = Instant.now(container.clock),
+                category = state.category.trim(),
+                freezesAvailable = existing?.freezesAvailable ?: Habit.DEFAULT_FREEZES,
             )
 
             val savedId = if (existing == null) repository.addHabit(habit) else {

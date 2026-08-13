@@ -7,6 +7,7 @@ import android.content.Intent
 import android.os.Build
 import com.momentum.app.domain.model.Habit
 import java.time.Clock
+import java.time.DayOfWeek
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
@@ -56,6 +57,28 @@ class ReminderScheduler(private val context: Context, private val clock: Clock =
     fun rescheduleAll(habits: List<Habit>) {
         habits.filter { !it.archived && it.reminderTime != null }.forEach { scheduleReminder(it) }
         scheduleMidnightRollover()
+        scheduleWeeklySummary()
+    }
+
+    /** Arms (or re-arms) the next Sunday-evening week-in-review notification. */
+    fun scheduleWeeklySummary() {
+        val intent = Intent(context, WeeklySummaryReceiver::class.java).apply { action = ACTION_WEEKLY_SUMMARY }
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            WEEKLY_SUMMARY_REQUEST_CODE,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        scheduleExactOrInexact(nextWeeklySummaryOccurrence(), pendingIntent)
+    }
+
+    private fun nextWeeklySummaryOccurrence(): Long {
+        val now = LocalDateTime.now(clock)
+        var candidateDate = now.toLocalDate()
+        while (candidateDate.dayOfWeek != DayOfWeek.SUNDAY) candidateDate = candidateDate.plusDays(1)
+        var candidate = candidateDate.atTime(WEEKLY_SUMMARY_HOUR, 0)
+        if (!candidate.isAfter(now)) candidate = candidate.plusDays(7)
+        return candidate.atZone(zone).toInstant().toEpochMilli()
     }
 
     fun scheduleMidnightRollover() {
@@ -101,9 +124,12 @@ class ReminderScheduler(private val context: Context, private val clock: Clock =
     companion object {
         const val ACTION_REMINDER = "com.momentum.app.action.HABIT_REMINDER"
         const val ACTION_MIDNIGHT = "com.momentum.app.action.MIDNIGHT_ROLLOVER"
+        const val ACTION_WEEKLY_SUMMARY = "com.momentum.app.action.WEEKLY_SUMMARY"
         const val EXTRA_HABIT_ID = "habit_id"
         const val EXTRA_HABIT_NAME = "habit_name"
         private const val REMINDER_REQUEST_CODE_BASE = 10_000
         private const val MIDNIGHT_REQUEST_CODE = 99_999
+        private const val WEEKLY_SUMMARY_REQUEST_CODE = 88_888
+        private const val WEEKLY_SUMMARY_HOUR = 18
     }
 }

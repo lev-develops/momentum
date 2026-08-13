@@ -37,6 +37,30 @@ class DataExportManager(
         } ?: error("Could not open output stream for $uri")
     }
 
+    /** One row per completion — the flat, spreadsheet-friendly shape most CSV consumers expect.
+     * Import isn't supported for CSV; JSON remains the round-trippable backup format. */
+    suspend fun exportToCsv(uri: Uri) = withContext(Dispatchers.IO) {
+        val habitsById = repository.getAllHabitsOnce().associateBy { it.id }
+        val completions = repository.getAllCompletionsOnce()
+            .sortedWith(compareBy({ it.habitId }, { it.date }))
+
+        val builder = StringBuilder("habit,category,date,completed_at\n")
+        completions.forEach { completion ->
+            val habit = habitsById[completion.habitId]
+            builder.append(csvField(habit?.name.orEmpty())).append(',')
+                .append(csvField(habit?.category.orEmpty())).append(',')
+                .append(completion.date).append(',')
+                .append(completion.completedAt)
+                .append('\n')
+        }
+
+        contentResolver.openOutputStream(uri)?.use { output ->
+            output.write(builder.toString().toByteArray(Charsets.UTF_8))
+        } ?: error("Could not open output stream for $uri")
+    }
+
+    private fun csvField(value: String): String = "\"${value.replace("\"", "\"\"")}\""
+
     suspend fun importFrom(uri: Uri): ImportResult = withContext(Dispatchers.IO) {
         try {
             val text = contentResolver.openInputStream(uri)?.use { input ->

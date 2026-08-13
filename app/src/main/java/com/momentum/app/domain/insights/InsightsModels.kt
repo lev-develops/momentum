@@ -11,6 +11,8 @@ enum class TimeOfDayBucket(val label: String) {
 
 data class WeekdayStat(val dayOfWeek: DayOfWeek, val rate: Float, val completions: Int)
 
+data class CategoryStat(val category: String, val habitCount: Int, val completionRate: Float)
+
 data class InsightsSummary(
     val hasData: Boolean,
     val bestWeekday: WeekdayStat?,
@@ -24,4 +26,5 @@ data class InsightsSummary(
     val monthOverMonthDelta: Int,
     val activeHabitCount: Int = 0,
     val overallCompletionRate: Float = 0f,
+    val categoryBreakdown: List<CategoryStat> = emptyList(),
 )

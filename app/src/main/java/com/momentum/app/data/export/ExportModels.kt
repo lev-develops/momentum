@@ -31,6 +31,7 @@ data class HabitDto(
     val createdAt: String,
     val archived: Boolean,
     val updatedAt: String? = null,
+    val category: String? = null,
 )
 
 @Serializable
@@ -53,6 +54,7 @@ fun Habit.toDto(): HabitDto = HabitDto(
     createdAt = createdAt.toString(),
     archived = archived,
     updatedAt = updatedAt.toString(),
+    category = category,
 )
 
 fun HabitDto.toDomain(): Habit {
@@ -69,6 +71,7 @@ fun HabitDto.toDomain(): Habit {
         createdAt = parsedCreatedAt,
         archived = archived,
         updatedAt = updatedAt?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: parsedCreatedAt,
+        category = category.orEmpty(),
     )
 }
 

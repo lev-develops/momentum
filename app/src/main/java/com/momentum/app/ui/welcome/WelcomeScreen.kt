@@ -29,6 +29,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.momentum.app.AppContainer
+import com.momentum.app.ui.components.GoogleSignInButton
 import com.momentum.app.ui.theme.LocalMomentumColors
 
 /** One-time gate shown on first launch: sign in/create an account with cloud sync, or skip and
@@ -137,6 +138,15 @@ private fun AuthForm(uiState: WelcomeUiState, viewModel: WelcomeViewModel) {
         val canSubmit = uiState.email.isNotBlank() && uiState.password.length >= 6 && !uiState.isBusy
         Button(onClick = viewModel::submit, enabled = canSubmit, modifier = Modifier.fillMaxWidth()) {
             Text(if (uiState.isSignUpMode) "Create account" else "Sign in")
+        }
+        uiState.googleWebClientId?.let { webClientId ->
+            GoogleSignInButton(
+                webClientId = webClientId,
+                onIdToken = viewModel::onGoogleIdToken,
+                onError = viewModel::onGoogleSignInError,
+                enabled = !uiState.isBusy,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }

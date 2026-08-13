@@ -30,10 +30,13 @@ with a version catalog
 - `ui/` — Compose screens (Today, Habit Detail, Add/Edit, Insights) and the shared
   `ui/theme/Theme.kt`, the single source of truth for every color in the app, including the
   six habit accent ramps and their dark-mode shift.
-- `widget/` — the Glance widget, its configuration activity, and a bitmap renderer that reads
-  the same `Theme.kt` palette so the widget's grid always matches the Detail screen's.
-- `reminder/` — AlarmManager scheduling for per-habit reminders and the midnight rollover,
-  plus a WorkManager worker that self-heals if an exact alarm gets dropped.
+- `widget/` — two Glance widgets: the original single-habit contribution-grid widget (with its
+  configuration activity) and `MomentumAllHabitsWidget`, a compact list of every active habit's
+  today-checkbox that needs no per-instance configuration. Both read the widget bitmap/text from
+  the same `Theme.kt` palette so they always match the Detail screen.
+- `reminder/` — AlarmManager scheduling for per-habit reminders, the midnight rollover, and a
+  once-a-week (Sunday evening) "week in review" notification, plus a WorkManager worker that
+  self-heals if an exact alarm gets dropped.
 - `sync/` — optional Firebase Auth + Firestore cloud backup/sync (`AuthManager`,
   `CloudSyncRepository`, `SyncWorker`). Local Room stays the source of truth; sync only pushes
   and merges on a manual "Sync now" or the hourly background worker, never on the hot path of
@@ -53,16 +56,25 @@ Cloud sync is off by default and the app never requires it. To turn it on:
 1. Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com).
 2. Add an Android app to it with package name `com.momentum.app`, then download its
    `google-services.json` and drop it in `app/google-services.json`.
-3. In the Firebase console, enable **Authentication → Email/Password** and create a
-   **Firestore** database (any region, start in production mode — the app only ever reads/writes
-   under `users/{signed-in uid}/...`, so a rule like `allow read, write: if request.auth.uid ==
-   uid;` on that path is sufficient).
+3. In the Firebase console, enable **Authentication → Email/Password** (and optionally **Google**
+   as a sign-in provider) and create a **Firestore** database (any region, start in production
+   mode — the app only ever reads/writes under `users/{signed-in uid}/...`, so a rule like
+   `allow read, write: if request.auth.uid == uid;` on that path is sufficient).
 4. Rebuild. `app/build.gradle.kts` only applies the `google-services` Gradle plugin when
    `google-services.json` is present, so the app builds and runs exactly as before if you skip
    all of this.
 
-Without a `google-services.json`, the in-app "Cloud sync" screen (Today → ⋮ → Cloud sync) just
-explains that sync isn't configured; nothing else in the app is affected.
+Without a `google-services.json`, the in-app "Cloud sync" screen (Today → ⋮ → Cloud sync) and the
+first-launch welcome screen just explain that sync isn't configured / skip straight past; nothing
+else in the app is affected.
+
+**Google sign-in button:** only appears once `R.string.default_web_client_id` exists, which the
+`google-services` plugin only generates once the **Google** provider is enabled in Firebase
+*before* `google-services.json` is downloaded. `AuthManager.googleWebClientId()` looks that
+resource up by name rather than referencing it directly, specifically so a build with an older
+json (predating enabling Google sign-in) still compiles — it just won't show the button. Enable
+Google sign-in in the console, re-download `google-services.json`, rebuild, and the button
+appears both on the welcome screen and the Cloud Sync screen.
 
 **Known limitations of this v1 scaffold:**
 
@@ -79,6 +91,8 @@ explains that sync isn't configured; nothing else in the app is affected.
   identity synced across devices from the start; not yet safe for merging two devices that
   already have independent history. Fixing this properly means switching the sync/merge key to a
   UUID assigned at habit creation instead of the local Room id.
+- Streak-freeze token counts and freeze history are local-only and don't sync — each device
+  tracks its own freezes. Habit name, icon, color, frequency, reminder, and category do sync.
 
 ## A note on this build
 

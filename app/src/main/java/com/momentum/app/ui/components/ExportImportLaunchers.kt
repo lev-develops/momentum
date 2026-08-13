@@ -42,6 +42,30 @@ fun rememberExportLauncher(container: AppContainer): () -> Unit {
     }
 }
 
+/** CSV is export-only (one row per completion) — JSON remains the format import reads back. */
+@Composable
+fun rememberCsvExportLauncher(container: AppContainer): () -> Unit {
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            runCatching { container.dataExportManager.exportToCsv(uri) }
+                .onSuccess { Toast.makeText(context, "Exported", Toast.LENGTH_SHORT).show() }
+                .onFailure { Toast.makeText(context, "Export failed: ${it.message}", Toast.LENGTH_LONG).show() }
+        }
+    }
+    return {
+        scope.launch {
+            if (container.habitRepository.getAllCompletionsOnce().isEmpty()) {
+                Toast.makeText(context, "No completions yet — nothing to export", Toast.LENGTH_SHORT).show()
+            } else {
+                launcher.launch("momentum-export-${LocalDate.now()}.csv")
+            }
+        }
+    }
+}
+
 /**
  * Importing wipes every habit and completion currently on the device before restoring from the
  * file, so this confirms with the user before touching anything — picking a file no longer

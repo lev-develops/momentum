@@ -19,6 +19,7 @@ data class WelcomeUiState(
     val errorMessage: String? = null,
     val verificationSentTo: String? = null,
     val resendStatus: String? = null,
+    val googleWebClientId: String? = null,
     /** True once the user has signed in, or chosen to skip — caller should navigate onward. */
     val resolved: Boolean = false,
 )
@@ -43,7 +44,7 @@ class WelcomeViewModel(container: AppContainer) : ViewModel() {
             _uiState.value = if (!auth.isConfigured || alreadyDecided || alreadySignedIn) {
                 _uiState.value.copy(isLoading = false, resolved = true)
             } else {
-                _uiState.value.copy(isLoading = false, showGate = true)
+                _uiState.value.copy(isLoading = false, showGate = true, googleWebClientId = auth.googleWebClientId())
             }
         }
     }
@@ -87,6 +88,24 @@ class WelcomeViewModel(container: AppContainer) : ViewModel() {
                 },
             )
         }
+    }
+
+    fun onGoogleIdToken(idToken: String) {
+        if (_uiState.value.isBusy) return
+        _uiState.value = _uiState.value.copy(isBusy = true, errorMessage = null)
+        viewModelScope.launch {
+            val result = auth.signInWithGoogleIdToken(idToken)
+            result.fold(
+                onSuccess = { completeGate() },
+                onFailure = { error ->
+                    _uiState.value = _uiState.value.copy(isBusy = false, errorMessage = error.message ?: "Google sign-in failed")
+                },
+            )
+        }
+    }
+
+    fun onGoogleSignInError(message: String) {
+        _uiState.value = _uiState.value.copy(isBusy = false, errorMessage = message)
     }
 
     fun resendVerification() {

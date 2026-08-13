@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name">Momentum</string>
     <string name="widget_description">Shows one habit\'s contribution grid and lets you check it off.</string>
+    <string name="all_habits_widget_description">Shows every active habit with a tap-to-complete checkbox for today.</string>
     <string name="widget_choose_habit">Choose a habit</string>
     <string name="widget_empty_state">Tap to choose a habit</string>
     <string name="reminder_channel_name">Habit reminders</string>

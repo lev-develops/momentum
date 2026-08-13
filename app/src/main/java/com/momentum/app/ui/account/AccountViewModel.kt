@@ -20,6 +20,7 @@ data class AccountUiState(
     val isBusy: Boolean = false,
     val statusMessage: String? = null,
     val isError: Boolean = false,
+    val googleWebClientId: String? = null,
 )
 
 class AccountViewModel(private val container: AppContainer) : ViewModel() {
@@ -27,7 +28,9 @@ class AccountViewModel(private val container: AppContainer) : ViewModel() {
     private val auth = container.authManager
     private val sync = container.cloudSyncRepository
 
-    private val _formState = MutableStateFlow(AccountUiState(isConfigured = auth.isConfigured))
+    private val _formState = MutableStateFlow(
+        AccountUiState(isConfigured = auth.isConfigured, googleWebClientId = auth.googleWebClientId()),
+    )
     val uiState: StateFlow<AccountUiState> = combine(_formState, auth.authStateFlow()) { form, user ->
         form.copy(signedInEmail = user?.email, isEmailVerified = user?.isEmailVerified ?: true)
     }.stateIn(
@@ -47,6 +50,12 @@ class AccountViewModel(private val container: AppContainer) : ViewModel() {
     fun signIn() = runAuthAction { auth.signIn(_formState.value.emailField, _formState.value.passwordField) }
 
     fun signUp() = runAuthAction { auth.signUp(_formState.value.emailField, _formState.value.passwordField) }
+
+    fun onGoogleIdToken(idToken: String) = runAuthAction { auth.signInWithGoogleIdToken(idToken) }
+
+    fun onGoogleSignInError(message: String) {
+        _formState.value = _formState.value.copy(isError = true, statusMessage = message)
+    }
 
     fun signOut() {
         auth.signOut()

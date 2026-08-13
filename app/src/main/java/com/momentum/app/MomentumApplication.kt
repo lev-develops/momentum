@@ -21,7 +21,10 @@ class MomentumApplication : Application() {
         container = AppContainer(this)
         NotificationHelper.ensureChannel(this)
 
-        applicationScope.launch { container.reminderScheduler.scheduleMidnightRollover() }
+        applicationScope.launch {
+            container.reminderScheduler.scheduleMidnightRollover()
+            container.reminderScheduler.scheduleWeeklySummary()
+        }
         MaintenanceWorker.enqueuePeriodic(this)
         SyncWorker.enqueuePeriodic(this)
     }

@@ -16,13 +16,15 @@ class InsightsViewModel(container: AppContainer) : ViewModel() {
     val summary: StateFlow<InsightsSummary?> = combine(
         container.habitRepository.observeAllHabits(),
         container.habitRepository.observeCompletionsByHabit(),
+        container.habitRepository.observeFreezesByHabit(),
         currentDateFlow(container.clock),
-    ) { habits, completionsByHabit, today ->
+    ) { habits, completionsByHabit, freezesByHabit, today ->
         InsightsCalculator.summarize(
             habits = habits.filter { !it.archived },
             completionsByHabit = completionsByHabit,
             today = today,
             zone = container.clock.zone,
+            freezesByHabit = freezesByHabit,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 }

@@ -37,6 +37,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.momentum.app.AppContainer
+import com.momentum.app.ui.components.GoogleSignInButton
 import com.momentum.app.ui.theme.LocalMomentumColors
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -176,6 +177,15 @@ private fun SignedOutSection(uiState: AccountUiState, viewModel: AccountViewMode
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(onClick = viewModel::signIn, enabled = canSubmit) { Text("Sign in") }
             TextButton(onClick = viewModel::signUp, enabled = canSubmit) { Text("Create account") }
+        }
+        uiState.googleWebClientId?.let { webClientId ->
+            GoogleSignInButton(
+                webClientId = webClientId,
+                onIdToken = viewModel::onGoogleIdToken,
+                onError = viewModel::onGoogleSignInError,
+                enabled = !uiState.isBusy,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }

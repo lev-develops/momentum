@@ -13,6 +13,8 @@ object NotificationHelper {
 
     const val CHANNEL_ID = "habit_reminders"
     private const val REQUEST_CODE_OFFSET = 100_000
+    private const val WEEKLY_SUMMARY_REQUEST_CODE = 200_000
+    private const val WEEKLY_SUMMARY_NOTIFICATION_ID = 900_001
 
     fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -49,5 +51,35 @@ object NotificationHelper {
 
         val manager = NotificationManagerCompat.from(context)
         runCatching { manager.notify(habitId.toInt(), notification) }
+    }
+
+    fun notifyWeeklySummary(context: Context, completed: Int, expected: Int, bestHabitName: String?) {
+        ensureChannel(context)
+
+        val percent = if (expected > 0) (completed * 100 / expected) else 0
+        val text = buildString {
+            append("You completed $completed of $expected this week ($percent%).")
+            if (bestHabitName != null) append(" Nice work on $bestHabitName.")
+        }
+
+        val contentIntent = android.app.PendingIntent.getActivity(
+            context,
+            WEEKLY_SUMMARY_REQUEST_CODE,
+            android.content.Intent(context, MainActivity::class.java),
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("Your week in review")
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(contentIntent)
+            .build()
+
+        val manager = NotificationManagerCompat.from(context)
+        runCatching { manager.notify(WEEKLY_SUMMARY_NOTIFICATION_ID, notification) }
     }
 }
