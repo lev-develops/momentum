@@ -2,8 +2,10 @@ package com.momentum.app.data.db.mapper
 
 import com.momentum.app.data.db.entity.CompletionEntity
 import com.momentum.app.data.db.entity.HabitEntity
+import com.momentum.app.data.db.entity.HabitTombstoneEntity
 import com.momentum.app.domain.model.Completion
 import com.momentum.app.domain.model.Habit
+import com.momentum.app.domain.model.HabitTombstone
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -48,4 +50,14 @@ fun Completion.toEntity(): CompletionEntity = CompletionEntity(
     habitId = habitId,
     date = date.toEpochDay(),
     completedAtEpochMillis = completedAt.toEpochMilli(),
+)
+
+fun HabitTombstoneEntity.toDomain(): HabitTombstone = HabitTombstone(
+    habitId = habitId,
+    deletedAt = Instant.ofEpochMilli(deletedAtEpochMillis),
+)
+
+fun HabitTombstone.toEntity(): HabitTombstoneEntity = HabitTombstoneEntity(
+    habitId = habitId,
+    deletedAtEpochMillis = deletedAt.toEpochMilli(),
 )

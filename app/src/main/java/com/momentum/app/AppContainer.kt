@@ -24,6 +24,7 @@ class AppContainer(context: Context) {
     val habitRepository: HabitRepository = HabitRepositoryImpl(
         habitDao = database.habitDao(),
         completionDao = database.completionDao(),
+        tombstoneDao = database.tombstoneDao(),
         database = database,
         clock = clock,
     )

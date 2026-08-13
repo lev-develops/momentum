@@ -193,6 +193,15 @@ class ToggleTodayAction : ActionCallback {
         val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(glanceId)
         val container = (context.applicationContext as MomentumApplication).container
         val habitId = container.widgetPrefsDataStore.getHabitId(appWidgetId) ?: return
+        // The bound habit may have been deleted since this widget last redrew (completions
+        // cascade-delete with the habit, so inserting against a stale id would otherwise throw
+        // a foreign-key constraint violation here). Bail and let the redraw below fall back to
+        // the empty-state content instead.
+        if (container.habitRepository.getHabit(habitId) == null) {
+            container.widgetPrefsDataStore.clear(appWidgetId)
+            MomentumWidget().update(context, glanceId)
+            return
+        }
         val today = LocalDate.now(container.clock)
         container.habitRepository.toggleCompletion(habitId, today)
         MomentumWidget().update(context, glanceId)

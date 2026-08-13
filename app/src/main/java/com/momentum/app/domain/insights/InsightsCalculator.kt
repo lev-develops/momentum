@@ -34,7 +34,7 @@ object InsightsCalculator {
             )
         }
 
-        val weekdayStats = weekdayStats(habits, completionsByHabit, today)
+        val weekdayStats = weekdayStats(habits, completionsByHabit, today, zone)
         val bestWeekday = weekdayStats.filter { it.completions > 0 }.maxByOrNull { it.rate }
         val worstWeekday = weekdayStats.filter { it.completions > 0 }.minByOrNull { it.rate }
 
@@ -90,14 +90,20 @@ object InsightsCalculator {
         habits: List<Habit>,
         completionsByHabit: Map<Long, List<Completion>>,
         today: LocalDate,
+        zone: ZoneId,
     ): List<WeekdayStat> = DayOfWeek.entries.map { dow ->
         var eligible = 0
         var completed = 0
         for (habit in habits) {
-            val createdDate = habit.createdAt.atZone(ZoneId.systemDefault()).toLocalDate()
+            val createdDate = habit.createdAt.atZone(zone).toLocalDate()
             if (today.isBefore(createdDate)) continue
             eligible += countWeekdayOccurrences(createdDate, today, dow)
-            completed += completionsByHabit[habit.id].orEmpty().count { it.date.dayOfWeek == dow }
+            // Bounded to the same [createdDate, today] window as `eligible` above, otherwise a
+            // completion outside that range (e.g. from an import/sync merge) can push completed
+            // past eligible and the rate above 100%.
+            completed += completionsByHabit[habit.id].orEmpty().count {
+                it.date.dayOfWeek == dow && !it.date.isBefore(createdDate) && !it.date.isAfter(today)
+            }
         }
         val rate = if (eligible > 0) completed.toFloat() / eligible.toFloat() else 0f
         WeekdayStat(dayOfWeek = dow, rate = rate, completions = completed)

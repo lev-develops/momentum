@@ -69,6 +69,7 @@ class HabitDetailViewModel(private val container: AppContainer, private val habi
             val habit = uiState.value.habit ?: return@launch
             repository.deleteHabit(habit)
             container.reminderScheduler.cancelReminder(habitId)
+            container.widgetPrefsDataStore.clearForHabit(habitId)
             container.refreshWidgets()
             onDone()
         }

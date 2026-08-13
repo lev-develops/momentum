@@ -9,12 +9,14 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.momentum.app.data.db.dao.CompletionDao
 import com.momentum.app.data.db.dao.HabitDao
+import com.momentum.app.data.db.dao.TombstoneDao
 import com.momentum.app.data.db.entity.CompletionEntity
 import com.momentum.app.data.db.entity.HabitEntity
+import com.momentum.app.data.db.entity.HabitTombstoneEntity
 
 @Database(
-    entities = [HabitEntity::class, CompletionEntity::class],
-    version = 2,
+    entities = [HabitEntity::class, CompletionEntity::class, HabitTombstoneEntity::class],
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -22,6 +24,7 @@ abstract class AppDatabase : RoomDatabase() {
 
     abstract fun habitDao(): HabitDao
     abstract fun completionDao(): CompletionDao
+    abstract fun tombstoneDao(): TombstoneDao
 
     companion object {
         private const val DATABASE_NAME = "momentum.db"
@@ -38,6 +41,17 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** Tracks habit deletions so cloud sync doesn't resurrect them from a stale remote copy. */
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS habit_tombstones (" +
+                        "habitId INTEGER NOT NULL PRIMARY KEY, " +
+                        "deletedAtEpochMillis INTEGER NOT NULL)",
+                )
+            }
+        }
+
         @Volatile
         private var instance: AppDatabase? = null
 
@@ -47,7 +61,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     DATABASE_NAME,
-                ).addMigrations(MIGRATION_1_2).build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { instance = it }
             }
     }
 }

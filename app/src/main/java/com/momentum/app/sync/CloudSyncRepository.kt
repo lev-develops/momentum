@@ -9,6 +9,9 @@ import com.momentum.app.data.export.toDto
 import com.momentum.app.data.repository.HabitRepository
 import com.momentum.app.domain.model.Completion
 import com.momentum.app.domain.model.Habit
+import com.momentum.app.domain.model.HabitTombstone
+import java.time.Duration
+import java.time.Instant
 import kotlinx.coroutines.tasks.await
 
 sealed interface SyncResult {
@@ -23,9 +26,16 @@ sealed interface SyncResult {
  *
  * Habits merge last-write-wins on [Habit.updatedAt]. Completions merge as a straight union (a
  * date marked done on either device stays done after sync) since "done" has no natural LWW
- * ordering. That union approach means unchecking a habit on one device, while another device is
- * offline with the old (checked) state, can resurrect the completion once both sync — a known
- * limitation of this v1 scaffold; a real tombstone-based delete would close that gap.
+ * ordering. That union approach means unchecking a single day on one device, while another
+ * device is offline with the old (checked) state, can resurrect that one completion once both
+ * sync — a known limitation of this v1 scaffold.
+ *
+ * Deleting a whole habit is handled with tombstones ([HabitTombstone]): deleting locally records
+ * a tombstone, sync unions local + remote tombstones and drops any habit/completion whose id is
+ * tombstoned from the merge (and from Firestore) instead of treating "missing locally" as "new
+ * on the other device". Tombstones older than [tombstoneRetention] are pruned so the set doesn't
+ * grow forever; that window needs to be longer than the longest gap between two devices syncing,
+ * or a very-stale device can still resurrect a long-deleted habit.
  *
  * Bigger known limitation: habits and completions are keyed by Room's local autoincrement
  * [Habit.id], which is only unique per device. Two devices that each create habits *before ever
@@ -50,12 +60,23 @@ class CloudSyncRepository(
         return try {
             val habitsRef = db.collection("users").document(uid).collection("habits")
             val completionsRef = db.collection("users").document(uid).collection("completions")
+            val tombstonesRef = db.collection("users").document(uid).collection("tombstones")
 
             val remoteHabits = habitsRef.get().await().documents.mapNotNull { it.toHabitDto() }
             val remoteCompletions = completionsRef.get().await().documents.mapNotNull { it.toCompletionDto() }
+            val remoteTombstones = tombstonesRef.get().await().documents.mapNotNull { it.toTombstone() }
 
             val localHabits = repository.getAllHabitsOnce()
             val localCompletions = repository.getAllCompletionsOnce()
+            val localTombstones = repository.getAllTombstones()
+
+            val mergedTombstonesById = LinkedHashMap<Long, HabitTombstone>()
+            (localTombstones + remoteTombstones).forEach { tombstone ->
+                val existing = mergedTombstonesById[tombstone.habitId]
+                if (existing == null || tombstone.deletedAt.isAfter(existing.deletedAt)) {
+                    mergedTombstonesById[tombstone.habitId] = tombstone
+                }
+            }
 
             val mergedHabitsById = LinkedHashMap<Long, Habit>()
             localHabits.forEach { mergedHabitsById[it.id] = it }
@@ -66,6 +87,10 @@ class CloudSyncRepository(
                     mergedHabitsById[remote.id] = remote
                 }
             }
+            // A tombstone means this habit was deliberately deleted — don't let a remote copy
+            // that predates the delete (or a local copy from before this device learned about
+            // it) resurrect it.
+            mergedTombstonesById.keys.forEach { mergedHabitsById.remove(it) }
 
             val mergedCompletionsByKey = LinkedHashMap<Pair<Long, String>, Completion>()
             localCompletions.forEach { mergedCompletionsByKey[it.habitId to it.date.toString()] = it }
@@ -75,11 +100,16 @@ class CloudSyncRepository(
                     mergedCompletionsByKey[key] = dto.toDomain()
                 }
             }
+            mergedCompletionsByKey.keys.removeAll { (habitId, _) -> habitId in mergedTombstonesById }
 
             val mergedHabits = mergedHabitsById.values.toList()
             val mergedCompletions = mergedCompletionsByKey.values.toList()
+            val mergedTombstones = mergedTombstonesById.values.toList()
 
             repository.replaceAllData(mergedHabits, mergedCompletions)
+            repository.saveTombstones(mergedTombstones)
+            val retentionCutoff = Instant.now().minus(tombstoneRetention)
+            repository.pruneTombstonesOlderThan(retentionCutoff)
 
             val batch = db.batch()
             mergedHabits.forEach { habit -> batch.set(habitsRef.document(habit.id.toString()), habit.toDto().toFirestoreMap()) }
@@ -87,12 +117,28 @@ class CloudSyncRepository(
                 val docId = "${completion.habitId}_${completion.date}"
                 batch.set(completionsRef.document(docId), completion.toDto().toFirestoreMap())
             }
+            mergedTombstones.forEach { tombstone ->
+                if (tombstone.deletedAt.isAfter(retentionCutoff)) {
+                    batch.set(tombstonesRef.document(tombstone.habitId.toString()), tombstone.toFirestoreMap())
+                }
+                // Clean up the now-tombstoned habit on the server so a third, not-yet-synced
+                // device doesn't pull it back down as "new".
+                batch.delete(habitsRef.document(tombstone.habitId.toString()))
+            }
+            remoteCompletions
+                .filter { it.habitId in mergedTombstonesById }
+                .forEach { dto -> batch.delete(completionsRef.document("${dto.habitId}_${dto.date}")) }
             batch.commit().await()
 
             SyncResult.Success(habitCount = mergedHabits.size, completionCount = mergedCompletions.size)
         } catch (e: Exception) {
             SyncResult.Failure(e.message ?: "Sync failed")
         }
+    }
+
+    companion object {
+        /** How long a tombstone is kept before it's pruned; must outlive the longest realistic gap between two devices syncing. */
+        private val tombstoneRetention = Duration.ofDays(180)
     }
 }
 
@@ -133,6 +179,17 @@ private fun DocumentSnapshot.toHabitDto(): HabitDto? {
         archived = getBoolean("archived") ?: false,
         updatedAt = getString("updatedAt"),
     )
+}
+
+private fun HabitTombstone.toFirestoreMap(): Map<String, Any?> = mapOf(
+    "habitId" to habitId,
+    "deletedAt" to deletedAt.toString(),
+)
+
+private fun DocumentSnapshot.toTombstone(): HabitTombstone? {
+    val habitId = getLong("habitId") ?: return null
+    val deletedAt = getString("deletedAt")?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: return null
+    return HabitTombstone(habitId = habitId, deletedAt = deletedAt)
 }
 
 private fun CompletionDto.toFirestoreMap(): Map<String, Any?> = mapOf(
