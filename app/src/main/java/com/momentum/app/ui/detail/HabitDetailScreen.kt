@@ -138,6 +138,23 @@ fun HabitDetailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        text = "❄️ ${uiState.freezesAvailable} freeze" + if (uiState.freezesAvailable == 1) "" else "s",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.textSecondary,
+                    )
+                    TextButton(onClick = viewModel::useFreeze, enabled = uiState.canUseFreeze) {
+                        Text("Freeze yesterday")
+                    }
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     OutlinedButton(onClick = onEdit, modifier = Modifier.weight(1f)) {
@@ -157,7 +174,7 @@ fun HabitDetailScreen(
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text("Delete this habit?") },
-            text = { Text("This removes its full history. This can't be undone.") },
+            text = { Text("This removes its full history. You'll get a few seconds to undo it from the Today screen.") },
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteConfirm = false

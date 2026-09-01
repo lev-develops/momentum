@@ -17,4 +17,12 @@ data class Habit(
     /** Last time this habit's own fields (not its completions) changed; drives last-write-wins
      * conflict resolution when merging with cloud sync. */
     val updatedAt: Instant = createdAt,
-)
+    /** Optional grouping label, e.g. "Health", "Work" — blank means uncategorized. */
+    val category: String = "",
+    /** Streak-freeze tokens left; spending one covers a missed day without breaking the streak. */
+    val freezesAvailable: Int = DEFAULT_FREEZES,
+) {
+    companion object {
+        const val DEFAULT_FREEZES = 2
+    }
+}

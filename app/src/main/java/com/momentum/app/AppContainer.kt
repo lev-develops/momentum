@@ -25,6 +25,7 @@ class AppContainer(context: Context) {
         habitDao = database.habitDao(),
         completionDao = database.completionDao(),
         tombstoneDao = database.tombstoneDao(),
+        freezeDao = database.freezeDao(),
         database = database,
         clock = clock,
     )
@@ -40,6 +41,9 @@ class AppContainer(context: Context) {
 
     val reminderScheduler = ReminderScheduler(context)
 
+    /** Backs the delete-with-undo snackbar shown on the Today screen. */
+    val pendingDeleteHolder = PendingDeleteHolder()
+
     /** Cloud backup/sync — optional. [AuthManager.isConfigured] is false until a Firebase
      * project's google-services.json is added, in which case these are safe no-ops. */
     val authManager = AuthManager(context)
@@ -51,5 +55,6 @@ class AppContainer(context: Context) {
 
     suspend fun refreshWidgets() {
         com.momentum.app.widget.MomentumWidget.refreshAll(appContext)
+        com.momentum.app.widget.MomentumAllHabitsWidget.refreshAll(appContext)
     }
 }

@@ -8,15 +8,22 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.momentum.app.data.db.dao.CompletionDao
+import com.momentum.app.data.db.dao.FreezeDao
 import com.momentum.app.data.db.dao.HabitDao
 import com.momentum.app.data.db.dao.TombstoneDao
 import com.momentum.app.data.db.entity.CompletionEntity
 import com.momentum.app.data.db.entity.HabitEntity
+import com.momentum.app.data.db.entity.HabitFreezeEntity
 import com.momentum.app.data.db.entity.HabitTombstoneEntity
 
 @Database(
-    entities = [HabitEntity::class, CompletionEntity::class, HabitTombstoneEntity::class],
-    version = 3,
+    entities = [
+        HabitEntity::class,
+        CompletionEntity::class,
+        HabitTombstoneEntity::class,
+        HabitFreezeEntity::class,
+    ],
+    version = 4,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -25,6 +32,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun habitDao(): HabitDao
     abstract fun completionDao(): CompletionDao
     abstract fun tombstoneDao(): TombstoneDao
+    abstract fun freezeDao(): FreezeDao
 
     companion object {
         private const val DATABASE_NAME = "momentum.db"
@@ -52,6 +60,22 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** Adds streak-freeze tokens/history and free-form habit categories. */
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE habits ADD COLUMN category TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE habits ADD COLUMN freezesAvailable INTEGER NOT NULL DEFAULT 2")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS habit_freezes (" +
+                        "habitId INTEGER NOT NULL, " +
+                        "date INTEGER NOT NULL, " +
+                        "PRIMARY KEY(habitId, date), " +
+                        "FOREIGN KEY(habitId) REFERENCES habits(id) ON DELETE CASCADE)",
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_habit_freezes_habitId ON habit_freezes(habitId)")
+            }
+        }
+
         @Volatile
         private var instance: AppDatabase? = null
 
@@ -61,7 +85,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     DATABASE_NAME,
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { instance = it }
             }
     }
 }

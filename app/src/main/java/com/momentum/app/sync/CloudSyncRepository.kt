@@ -157,6 +157,7 @@ private fun HabitDto.toFirestoreMap(): Map<String, Any?> = mapOf(
     "createdAt" to createdAt,
     "archived" to archived,
     "updatedAt" to updatedAt,
+    "category" to category,
 )
 
 private fun DocumentSnapshot.toHabitDto(): HabitDto? {
@@ -178,6 +179,7 @@ private fun DocumentSnapshot.toHabitDto(): HabitDto? {
         createdAt = createdAt,
         archived = getBoolean("archived") ?: false,
         updatedAt = getString("updatedAt"),
+        category = getString("category"),
     )
 }
 

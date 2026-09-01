@@ -27,8 +27,10 @@ import com.momentum.app.ui.detail.HabitDetailScreen
 import com.momentum.app.ui.insights.InsightsScreen
 import com.momentum.app.ui.theme.LocalMomentumColors
 import com.momentum.app.ui.today.TodayScreen
+import com.momentum.app.ui.welcome.WelcomeScreen
 
 object Routes {
+    const val WELCOME = "welcome"
     const val TODAY = "today"
     const val INSIGHTS = "insights"
     const val DETAIL = "detail/{habitId}"
@@ -59,9 +61,19 @@ fun MomentumNavHost(container: AppContainer) {
     ) { padding ->
         NavHost(
             navController = navController,
-            startDestination = Routes.TODAY,
+            startDestination = Routes.WELCOME,
             modifier = Modifier.padding(padding),
         ) {
+            composable(Routes.WELCOME) {
+                WelcomeScreen(
+                    container = container,
+                    onDone = {
+                        navController.navigate(Routes.TODAY) {
+                            popUpTo(Routes.WELCOME) { inclusive = true }
+                        }
+                    },
+                )
+            }
             composable(Routes.TODAY) {
                 TodayScreen(
                     container = container,

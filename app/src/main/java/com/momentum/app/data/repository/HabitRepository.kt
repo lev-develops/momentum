@@ -3,6 +3,7 @@ package com.momentum.app.data.repository
 import androidx.room.RoomDatabase
 import androidx.room.withTransaction
 import com.momentum.app.data.db.dao.CompletionDao
+import com.momentum.app.data.db.dao.FreezeDao
 import com.momentum.app.data.db.dao.HabitDao
 import com.momentum.app.data.db.dao.TombstoneDao
 import com.momentum.app.data.db.mapper.toDomain
@@ -10,6 +11,7 @@ import com.momentum.app.data.db.mapper.toEntity
 import com.momentum.app.domain.model.Completion
 import com.momentum.app.domain.model.Habit
 import com.momentum.app.domain.model.HabitTombstone
+import com.momentum.app.domain.model.StreakFreeze
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
@@ -24,6 +26,8 @@ interface HabitRepository {
     fun observeCompletions(habitId: Long): Flow<List<Completion>>
     fun observeCompletionsByHabit(): Flow<Map<Long, List<Completion>>>
     fun observeCompletedDates(habitId: Long): Flow<Set<LocalDate>>
+    fun observeFrozenDates(habitId: Long): Flow<Set<LocalDate>>
+    fun observeFreezesByHabit(): Flow<Map<Long, Set<LocalDate>>>
 
     suspend fun getHabit(id: Long): Habit?
     suspend fun isCompleted(habitId: Long, date: LocalDate): Boolean
@@ -32,6 +36,10 @@ interface HabitRepository {
 
     /** Flips the habit's completion for [date] and returns the new state. */
     suspend fun toggleCompletion(habitId: Long, date: LocalDate): Boolean
+
+    /** Spends one of the habit's freeze tokens to cover [date] (must be missed, not already
+     * frozen, and the habit must have a token left). Returns whether it was applied. */
+    suspend fun useFreeze(habitId: Long, date: LocalDate): Boolean
 
     suspend fun addHabit(habit: Habit): Long
     suspend fun updateHabit(habit: Habit)
@@ -52,6 +60,7 @@ class HabitRepositoryImpl(
     private val habitDao: HabitDao,
     private val completionDao: CompletionDao,
     private val tombstoneDao: TombstoneDao,
+    private val freezeDao: FreezeDao,
     private val database: RoomDatabase,
     private val clock: Clock = Clock.systemDefaultZone(),
 ) : HabitRepository {
@@ -70,6 +79,16 @@ class HabitRepositoryImpl(
 
     override fun observeCompletedDates(habitId: Long): Flow<Set<LocalDate>> =
         observeCompletions(habitId).map { list -> list.map { it.date }.toSet() }
+
+    override fun observeFrozenDates(habitId: Long): Flow<Set<LocalDate>> =
+        freezeDao.observeForHabit(habitId).map { list -> list.map { it.toDomain().date }.toSet() }
+
+    override fun observeFreezesByHabit(): Flow<Map<Long, Set<LocalDate>>> =
+        freezeDao.observeAll().map { list ->
+            list.map { it.toDomain() }
+                .groupBy({ it.habitId }, { it.date })
+                .mapValues { (_, dates) -> dates.toSet() }
+        }
 
     override fun observeCompletionsByHabit(): Flow<Map<Long, List<Completion>>> =
         combine(habitDao.observeAll(), completionDao.observeAll()) { habits, completions ->
@@ -98,6 +117,16 @@ class HabitRepositoryImpl(
             completionDao.insert(completion.toEntity())
             true
         }
+    }
+
+    override suspend fun useFreeze(habitId: Long, date: LocalDate): Boolean = database.withTransaction {
+        val habit = habitDao.getById(habitId) ?: return@withTransaction false
+        if (habit.freezesAvailable <= 0) return@withTransaction false
+        if (completionDao.find(habitId, date.toEpochDay()) != null) return@withTransaction false
+        if (freezeDao.find(habitId, date.toEpochDay()) != null) return@withTransaction false
+        freezeDao.insert(StreakFreeze(habitId = habitId, date = date).toEntity())
+        habitDao.update(habit.copy(freezesAvailable = habit.freezesAvailable - 1))
+        true
     }
 
     override suspend fun addHabit(habit: Habit): Long = habitDao.upsert(habit.toEntity())

@@ -17,6 +17,9 @@ object InsightsCalculator {
         completionsByHabit: Map<Long, List<Completion>>,
         today: LocalDate,
         zone: ZoneId = ZoneId.systemDefault(),
+        /** Streak-freeze-covered dates, folded into streak continuity only — not into weekday or
+         * completion-rate stats, since a frozen day wasn't actually done. */
+        freezesByHabit: Map<Long, Set<LocalDate>> = emptyMap(),
     ): InsightsSummary {
         val allCompletions = completionsByHabit.values.flatten()
         if (allCompletions.isEmpty()) {
@@ -47,22 +50,41 @@ object InsightsCalculator {
         var longestStreak = 0
         var longestStreakHabitName: String? = null
         var completionRateSum = 0f
+        val perHabitRates = mutableListOf<Pair<Habit, Float>>()
         for (habit in habits) {
             val dates = completionsByHabit[habit.id].orEmpty().map { it.date }.toSet()
-            val best = StreakCalculator.bestStreak(dates, habit.frequency, habit.targetDaysPerWeek, today)
+            val best = StreakCalculator.bestStreak(
+                dates + freezesByHabit[habit.id].orEmpty(),
+                habit.frequency,
+                habit.targetDaysPerWeek,
+                today,
+            )
             if (best > longestStreak) {
                 longestStreak = best
                 longestStreakHabitName = habit.name
             }
-            completionRateSum += StreakCalculator.completionRate(
+            val rate = StreakCalculator.completionRate(
                 dates,
                 habit.createdAt.atZone(zone).toLocalDate(),
                 habit.frequency,
                 habit.targetDaysPerWeek,
                 today,
             )
+            completionRateSum += rate
+            perHabitRates += habit to rate
         }
         val overallCompletionRate = if (habits.isNotEmpty()) completionRateSum / habits.size else 0f
+        val categoryBreakdown = perHabitRates
+            .filter { (habit, _) -> habit.category.isNotBlank() }
+            .groupBy { (habit, _) -> habit.category }
+            .map { (category, entries) ->
+                CategoryStat(
+                    category = category,
+                    habitCount = entries.size,
+                    completionRate = entries.map { (_, rate) -> rate }.average().toFloat(),
+                )
+            }
+            .sortedByDescending { it.completionRate }
 
         val thisMonth = YearMonth.from(today)
         val lastMonth = thisMonth.minusMonths(1)
@@ -82,6 +104,7 @@ object InsightsCalculator {
             monthOverMonthDelta = completionsThisMonth - completionsLastMonth,
             activeHabitCount = habits.size,
             overallCompletionRate = overallCompletionRate,
+            categoryBreakdown = categoryBreakdown,
         )
     }
 

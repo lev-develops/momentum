@@ -20,4 +20,6 @@ data class HabitEntity(
     val createdAtEpochMillis: Long,
     val archived: Boolean,
     val updatedAtEpochMillis: Long = createdAtEpochMillis,
+    val category: String = "",
+    val freezesAvailable: Int = 2,
 )

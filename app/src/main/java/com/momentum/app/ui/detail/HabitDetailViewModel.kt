@@ -24,6 +24,8 @@ data class HabitDetailUiState(
     val bestStreak: Int = 0,
     val completionRate: Float = 0f,
     val deleted: Boolean = false,
+    val freezesAvailable: Int = 0,
+    val canUseFreeze: Boolean = false,
 )
 
 class HabitDetailViewModel(private val container: AppContainer, private val habitId: Long) : ViewModel() {
@@ -33,18 +35,21 @@ class HabitDetailViewModel(private val container: AppContainer, private val habi
     val uiState: StateFlow<HabitDetailUiState> = combine(
         repository.observeHabit(habitId),
         repository.observeCompletedDates(habitId),
+        repository.observeFrozenDates(habitId),
         currentDateFlow(container.clock),
-    ) { habit, dates, today ->
+    ) { habit, dates, frozen, today ->
         if (habit == null) {
             HabitDetailUiState(isLoading = false, habit = null)
         } else {
+            val countedDates = dates + frozen
+            val yesterday = today.minusDays(1)
             HabitDetailUiState(
                 isLoading = false,
                 habit = habit,
-                grid = ContributionGridBuilder.build(dates, habit.targetDaysPerWeek, today),
+                grid = ContributionGridBuilder.build(countedDates, habit.targetDaysPerWeek, today),
                 completedToday = today in dates,
-                currentStreak = StreakCalculator.currentStreak(dates, habit.frequency, habit.targetDaysPerWeek, today),
-                bestStreak = StreakCalculator.bestStreak(dates, habit.frequency, habit.targetDaysPerWeek, today),
+                currentStreak = StreakCalculator.currentStreak(countedDates, habit.frequency, habit.targetDaysPerWeek, today),
+                bestStreak = StreakCalculator.bestStreak(countedDates, habit.frequency, habit.targetDaysPerWeek, today),
                 completionRate = StreakCalculator.completionRate(
                     dates,
                     habit.createdAt.atZone(container.clock.zone).toLocalDate(),
@@ -52,6 +57,8 @@ class HabitDetailViewModel(private val container: AppContainer, private val habi
                     habit.targetDaysPerWeek,
                     today,
                 ),
+                freezesAvailable = habit.freezesAvailable,
+                canUseFreeze = habit.freezesAvailable > 0 && yesterday !in countedDates && !yesterday.isBefore(habit.createdAt.atZone(container.clock.zone).toLocalDate()),
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HabitDetailUiState())
@@ -64,14 +71,26 @@ class HabitDetailViewModel(private val container: AppContainer, private val habi
         }
     }
 
-    fun delete(onDone: () -> Unit) {
+    fun useFreeze() {
         viewModelScope.launch {
-            val habit = uiState.value.habit ?: return@launch
-            repository.deleteHabit(habit)
-            container.reminderScheduler.cancelReminder(habitId)
-            container.widgetPrefsDataStore.clearForHabit(habitId)
+            val today = LocalDate.now(container.clock)
+            repository.useFreeze(habitId, today.minusDays(1))
             container.refreshWidgets()
-            onDone()
         }
+    }
+
+    /**
+     * Doesn't delete anything yet — hands the habit to [PendingDeleteHolder] so the Today screen
+     * (where the user lands right after) can offer "Undo" before the delete actually commits.
+     */
+    fun delete(onDone: () -> Unit) {
+        val habit = uiState.value.habit ?: return
+        container.pendingDeleteHolder.begin(habit) {
+            repository.deleteHabit(habit)
+            container.reminderScheduler.cancelReminder(habit.id)
+            container.widgetPrefsDataStore.clearForHabit(habit.id)
+            container.refreshWidgets()
+        }
+        onDone()
     }
 }

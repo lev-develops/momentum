@@ -34,6 +34,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.momentum.app.AppContainer
+import com.momentum.app.domain.insights.CategoryStat
 import com.momentum.app.domain.insights.InsightsSummary
 import com.momentum.app.domain.insights.WeekdayStat
 import com.momentum.app.ui.components.EmptyState
@@ -89,6 +90,7 @@ private fun InsightsContent(data: InsightsSummary, modifier: Modifier = Modifier
         OverviewCard(data)
         WeeklyPatternCard(data)
         HighlightsCard(data)
+        CategoryBreakdownCard(data)
         MonthComparisonCard(data)
         TipCard()
     }
@@ -221,6 +223,54 @@ private fun HighlightRow(label: String, value: String, detail: String? = null) {
             if (detail != null) {
                 Text(text = detail, style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
             }
+        }
+    }
+}
+
+@Composable
+private fun CategoryBreakdownCard(data: InsightsSummary) {
+    if (data.categoryBreakdown.isEmpty()) return
+    val colors = LocalMomentumColors.current
+    InsightsCard {
+        CardTitle("By category")
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            data.categoryBreakdown.forEach { stat -> CategoryRow(stat, colors) }
+        }
+    }
+}
+
+@Composable
+private fun CategoryRow(stat: CategoryStat, colors: MomentumColors) {
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = "${stat.category} (${stat.habitCount})",
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.textPrimary,
+            )
+            Text(
+                text = "${(stat.completionRate * 100).roundToInt()}%",
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.textSecondary,
+            )
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 6.dp)
+                .height(6.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(colors.gridEmpty),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(stat.completionRate.coerceIn(0.02f, 1f))
+                    .background(colors.textPrimary),
+            )
         }
     }
 }

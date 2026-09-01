@@ -57,11 +57,27 @@
         </receiver>
 
         <receiver
+            android:name=".widget.MomentumAllHabitsWidgetReceiver"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/momentum_all_habits_widget_info" />
+        </receiver>
+
+        <receiver
             android:name=".reminder.ReminderAlarmReceiver"
             android:exported="false" />
 
         <receiver
             android:name=".reminder.MidnightRolloverReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".reminder.WeeklySummaryReceiver"
             android:exported="false" />
 
         <receiver

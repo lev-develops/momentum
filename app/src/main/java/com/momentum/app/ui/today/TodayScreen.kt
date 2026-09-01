@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,14 +17,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CloudSync
+import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,15 +37,22 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,11 +73,16 @@ import com.momentum.app.AppContainer
 import com.momentum.app.ui.components.EmptyState
 import com.momentum.app.ui.components.PermissionsBanner
 import com.momentum.app.ui.components.imageVector
+import com.momentum.app.ui.components.rememberCsvExportLauncher
 import com.momentum.app.ui.components.rememberExportLauncher
 import com.momentum.app.ui.components.rememberImportLauncher
 import com.momentum.app.ui.theme.HabitPalette
 import com.momentum.app.ui.theme.LocalMomentumColors
+import com.momentum.app.ui.theme.ThemePreference
 import kotlin.math.roundToInt
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private val RowHeight = 72.dp
 
@@ -83,12 +100,39 @@ fun TodayScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val colors = LocalMomentumColors.current
     var menuExpanded by remember { mutableStateOf(false) }
+    var showThemeDialog by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val themePreference by container.appPrefsDataStore.themePreferenceFlow()
+        .collectAsState(initial = ThemePreference.SYSTEM)
 
     val exportLauncher = rememberExportLauncher(container)
+    val csvExportLauncher = rememberCsvExportLauncher(container)
     val importLauncher = rememberImportLauncher(container)
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val pendingDelete by container.pendingDeleteHolder.pending.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingDelete?.habit?.id) {
+        val pending = pendingDelete ?: return@LaunchedEffect
+        try {
+            val result = snackbarHostState.showSnackbar(
+                message = "\"${pending.habit.name}\" deleted",
+                actionLabel = "Undo",
+                withDismissAction = true,
+            )
+            when (result) {
+                SnackbarResult.ActionPerformed -> container.pendingDeleteHolder.undo(pending.habit.id)
+                SnackbarResult.Dismissed -> container.pendingDeleteHolder.commitIfPending(pending.habit.id)
+            }
+        } finally {
+            // If this coroutine got cancelled instead (e.g. the user navigated off Today before
+            // the snackbar resolved), still commit rather than leaving the delete stuck pending.
+            withContext(NonCancellable) { container.pendingDeleteHolder.commitIfPending(pending.habit.id) }
+        }
+    }
 
     Scaffold(
         containerColor = colors.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -118,6 +162,14 @@ fun TodayScreen(
                             },
                         )
                         DropdownMenuItem(
+                            text = { Text("Export as CSV") },
+                            leadingIcon = { Icon(Icons.Rounded.FileUpload, contentDescription = null) },
+                            onClick = {
+                                menuExpanded = false
+                                csvExportLauncher()
+                            },
+                        )
+                        DropdownMenuItem(
                             text = { Text("Import data") },
                             leadingIcon = { Icon(Icons.Rounded.FileDownload, contentDescription = null) },
                             onClick = {
@@ -131,6 +183,14 @@ fun TodayScreen(
                             onClick = {
                                 menuExpanded = false
                                 onAccount()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Appearance") },
+                            leadingIcon = { Icon(Icons.Rounded.DarkMode, contentDescription = null) },
+                            onClick = {
+                                menuExpanded = false
+                                showThemeDialog = true
                             },
                         )
                     }
@@ -148,6 +208,14 @@ fun TodayScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 8.dp),
             )
+            if (uiState.categories.isNotEmpty()) {
+                CategoryFilterRow(
+                    categories = uiState.categories,
+                    selected = uiState.selectedCategory,
+                    onSelect = viewModel::setCategoryFilter,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+            }
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 if (uiState.isLoading) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -170,6 +238,86 @@ fun TodayScreen(
                 }
             }
         }
+    }
+
+    if (showThemeDialog) {
+        AlertDialog(
+            onDismissRequest = { showThemeDialog = false },
+            title = { Text("Appearance") },
+            text = {
+                Column {
+                    ThemeOptionRow(
+                        label = "System default",
+                        selected = themePreference == ThemePreference.SYSTEM,
+                        onClick = { scope.launch { container.appPrefsDataStore.setThemePreference(ThemePreference.SYSTEM) } },
+                    )
+                    ThemeOptionRow(
+                        label = "Light",
+                        selected = themePreference == ThemePreference.LIGHT,
+                        onClick = { scope.launch { container.appPrefsDataStore.setThemePreference(ThemePreference.LIGHT) } },
+                    )
+                    ThemeOptionRow(
+                        label = "Dark",
+                        selected = themePreference == ThemePreference.DARK,
+                        onClick = { scope.launch { container.appPrefsDataStore.setThemePreference(ThemePreference.DARK) } },
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showThemeDialog = false }) { Text("Done") }
+            },
+        )
+    }
+}
+
+@Composable
+private fun ThemeOptionRow(label: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Text(text = label, modifier = Modifier.padding(start = 8.dp))
+    }
+}
+
+@Composable
+private fun CategoryFilterRow(
+    categories: List<String>,
+    selected: String?,
+    onSelect: (String?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalMomentumColors.current
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        CategoryChip(label = "All", isSelected = selected == null, onClick = { onSelect(null) })
+        categories.forEach { category ->
+            CategoryChip(label = category, isSelected = selected == category, onClick = { onSelect(category) })
+        }
+    }
+}
+
+@Composable
+private fun CategoryChip(label: String, isSelected: Boolean, onClick: () -> Unit) {
+    val colors = LocalMomentumColors.current
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(if (isSelected) colors.surface else colors.background)
+            .border(1.dp, if (isSelected) colors.textPrimary else colors.hairline, RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+    ) {
+        Text(text = label, style = MaterialTheme.typography.bodySmall, color = colors.textPrimary)
     }
 }
 
