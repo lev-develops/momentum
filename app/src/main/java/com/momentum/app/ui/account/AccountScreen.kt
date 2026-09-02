@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -27,6 +28,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.KeyboardType
@@ -38,6 +42,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.momentum.app.AppContainer
 import com.momentum.app.ui.components.GoogleSignInButton
+import com.momentum.app.ui.components.PrivacyPolicyLink
 import com.momentum.app.ui.theme.LocalMomentumColors
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,6 +85,7 @@ fun AccountScreen(container: AppContainer, onBack: () -> Unit) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = colors.textSecondary,
                 )
+                PrivacyPolicyLink()
                 return@Scaffold
             }
 
@@ -109,6 +115,8 @@ fun AccountScreen(container: AppContainer, onBack: () -> Unit) {
                     color = if (uiState.isError) MaterialTheme.colorScheme.error else colors.textPrimary,
                 )
             }
+
+            PrivacyPolicyLink()
         }
     }
 }
@@ -150,6 +158,33 @@ private fun SignedInSection(email: String, isEmailVerified: Boolean, isBusy: Boo
                 Text("Sign out")
             }
         }
+
+        var showDeleteConfirm by remember { mutableStateOf(false) }
+        TextButton(onClick = { showDeleteConfirm = true }, enabled = !isBusy) {
+            Text("Delete account", color = MaterialTheme.colorScheme.error)
+        }
+        if (showDeleteConfirm) {
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirm = false },
+                title = { Text("Delete your account?") },
+                text = {
+                    Text(
+                        "This permanently deletes your account and everything backed up to the " +
+                            "cloud under it. Habits already on this device stay right where they " +
+                            "are — this only affects the cloud copy. This can't be undone.",
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showDeleteConfirm = false
+                        viewModel.deleteAccount()
+                    }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+                },
+            )
+        }
     }
 }
 
@@ -177,6 +212,12 @@ private fun SignedOutSection(uiState: AccountUiState, viewModel: AccountViewMode
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(onClick = viewModel::signIn, enabled = canSubmit) { Text("Sign in") }
             TextButton(onClick = viewModel::signUp, enabled = canSubmit) { Text("Create account") }
+        }
+        TextButton(
+            onClick = viewModel::forgotPassword,
+            enabled = uiState.emailField.isNotBlank() && !uiState.isBusy,
+        ) {
+            Text("Forgot password?")
         }
         uiState.googleWebClientId?.let { webClientId ->
             GoogleSignInButton(

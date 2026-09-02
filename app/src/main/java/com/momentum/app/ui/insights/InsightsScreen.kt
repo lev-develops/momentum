@@ -26,6 +26,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -47,7 +49,7 @@ import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InsightsScreen(container: AppContainer) {
+fun InsightsScreen(container: AppContainer, onAddHabit: () -> Unit) {
     val viewModel: InsightsViewModel = viewModel(
         factory = viewModelFactory { initializer { InsightsViewModel(container) } },
     )
@@ -70,8 +72,11 @@ fun InsightsScreen(container: AppContainer) {
         if (data == null || !data.hasData) {
             EmptyState(
                 title = "Nothing to show yet",
-                message = "Complete a few habits and your patterns will show up here.",
+                message = "Complete a few habits and your patterns — best days, streaks, and " +
+                    "more — will show up here.",
                 modifier = Modifier.fillMaxSize().padding(padding),
+                actionLabel = "Add a habit",
+                onAction = onAddHabit,
             )
         } else {
             InsightsContent(data, modifier = Modifier.fillMaxSize().padding(padding))
@@ -167,7 +172,15 @@ private fun WeeklyPatternCard(data: InsightsSummary) {
 private fun WeekdayBar(stat: WeekdayStat, maxRate: Float, maxHeight: Dp, colors: MomentumColors) {
     val fraction = (stat.rate / maxRate).coerceIn(0f, 1f)
     val barHeight = (maxHeight * fraction).coerceAtLeast(4.dp)
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(32.dp)) {
+    val fullDayName = stat.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .width(32.dp)
+            .semantics(mergeDescendants = true) {
+                contentDescription = "$fullDayName, ${(stat.rate * 100).roundToInt()} percent completion"
+            },
+    ) {
         Box(modifier = Modifier.height(maxHeight), contentAlignment = Alignment.BottomCenter) {
             Box(
                 modifier = Modifier

@@ -19,7 +19,10 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         val container = (applicationContext as MomentumApplication).container
         if (container.authManager.currentUser == null) return Result.success()
         return when (container.cloudSyncRepository.sync()) {
-            is SyncResult.Success -> Result.success()
+            is SyncResult.Success -> {
+                container.refreshWidgets()
+                Result.success()
+            }
             is SyncResult.Failure -> Result.retry()
         }
     }

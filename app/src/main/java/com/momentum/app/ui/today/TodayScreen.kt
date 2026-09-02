@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -62,6 +64,9 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -224,8 +229,11 @@ fun TodayScreen(
                 } else if (uiState.habits.isEmpty()) {
                     EmptyState(
                         title = "No habits yet",
-                        message = "Add your first habit to start building momentum.",
+                        message = "Add your first habit to start building momentum — a few " +
+                            "presets are ready to go, or start from scratch.",
                         modifier = Modifier.fillMaxSize(),
+                        actionLabel = "Add a habit",
+                        onAction = onAddHabit,
                     )
                 } else {
                     ReorderableHabitList(
@@ -275,11 +283,11 @@ private fun ThemeOptionRow(label: String, selected: Boolean, onClick: () -> Unit
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .selectable(selected = selected, onClick = onClick, role = Role.RadioButton)
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        RadioButton(selected = selected, onClick = onClick)
+        RadioButton(selected = selected, onClick = null)
         Text(text = label, modifier = Modifier.padding(start = 8.dp))
     }
 }
@@ -314,7 +322,7 @@ private fun CategoryChip(label: String, isSelected: Boolean, onClick: () -> Unit
             .clip(RoundedCornerShape(20.dp))
             .background(if (isSelected) colors.surface else colors.background)
             .border(1.dp, if (isSelected) colors.textPrimary else colors.hairline, RoundedCornerShape(20.dp))
-            .clickable(onClick = onClick)
+            .selectable(selected = isSelected, onClick = onClick, role = Role.Tab)
             .padding(horizontal = 14.dp, vertical = 8.dp),
     ) {
         Text(text = label, style = MaterialTheme.typography.bodySmall, color = colors.textPrimary)
@@ -421,6 +429,7 @@ private fun TodayHabitRow(
         CompletionCircle(
             completed = item.completedToday,
             accent = accent,
+            habitName = item.habit.name,
             onClick = {
                 haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 onToggle()
@@ -450,7 +459,7 @@ private fun TodayHabitRow(
 }
 
 @Composable
-private fun CompletionCircle(completed: Boolean, accent: Color, onClick: () -> Unit) {
+private fun CompletionCircle(completed: Boolean, accent: Color, habitName: String, onClick: () -> Unit) {
     val colors = LocalMomentumColors.current
     Box(
         modifier = Modifier
@@ -465,13 +474,18 @@ private fun CompletionCircle(completed: Boolean, accent: Color, onClick: () -> U
                         .border(1.5.dp, colors.hairline, CircleShape)
                 },
             )
-            .clickable(onClick = onClick),
+            .toggleable(
+                value = completed,
+                onValueChange = { onClick() },
+                role = Role.Checkbox,
+            )
+            .semantics { contentDescription = "$habitName, today" },
         contentAlignment = Alignment.Center,
     ) {
         if (completed) {
             Icon(
                 imageVector = Icons.Rounded.Check,
-                contentDescription = "Completed",
+                contentDescription = null,
                 tint = colors.background,
                 modifier = Modifier.size(16.dp),
             )

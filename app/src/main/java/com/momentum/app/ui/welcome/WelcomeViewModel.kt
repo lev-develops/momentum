@@ -19,15 +19,17 @@ data class WelcomeUiState(
     val errorMessage: String? = null,
     val verificationSentTo: String? = null,
     val resendStatus: String? = null,
+    val passwordResetStatus: String? = null,
     val googleWebClientId: String? = null,
-    /** True once the user has signed in, or chosen to skip — caller should navigate onward. */
+    /** True once the user has signed in — caller should navigate onward. */
     val resolved: Boolean = false,
 )
 
 /**
- * Drives the one-time "sign in / create an account / skip and stay local" gate shown on first
- * launch. Resolves immediately without showing anything if cloud sync isn't configured for this
- * build, if the user already went through the gate before, or if they're already signed in.
+ * Drives the one-time "sign in / create an account" gate shown on first launch. Resolves
+ * immediately without showing anything if cloud sync isn't configured for this build (there's
+ * nothing to sign in to) or if the user is already signed in. Otherwise signing in is required —
+ * there's deliberately no "skip and stay local" escape hatch here.
  */
 class WelcomeViewModel(container: AppContainer) : ViewModel() {
 
@@ -118,7 +120,20 @@ class WelcomeViewModel(container: AppContainer) : ViewModel() {
     /** After sign-up, the user can start using the app right away without waiting to verify. */
     fun continueToApp() = completeGate()
 
-    fun skip() = completeGate()
+    fun forgotPassword() {
+        val email = _uiState.value.email
+        if (email.isBlank() || _uiState.value.isBusy) return
+        _uiState.value = _uiState.value.copy(isBusy = true, errorMessage = null, passwordResetStatus = null)
+        viewModelScope.launch {
+            auth.sendPasswordResetEmail(email)
+            // Always show the same message regardless of whether the email is registered, so
+            // this can't be used to check which addresses have accounts.
+            _uiState.value = _uiState.value.copy(
+                isBusy = false,
+                passwordResetStatus = "If an account exists for that email, a reset link is on its way.",
+            )
+        }
+    }
 
     private fun completeGate() {
         viewModelScope.launch {

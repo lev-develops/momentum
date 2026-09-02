@@ -89,7 +89,7 @@ fun MomentumNavHost(container: AppContainer) {
                 )
             }
             composable(Routes.INSIGHTS) {
-                InsightsScreen(container = container)
+                InsightsScreen(container = container, onAddHabit = { navController.navigate(Routes.addEdit()) })
             }
             composable(
                 route = Routes.DETAIL,

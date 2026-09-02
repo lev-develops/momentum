@@ -3,7 +3,11 @@
 An offline-first Android habit tracker. Native Kotlin + Jetpack Compose, no backend required —
 every screen reads and writes the local Room database directly and the app works fully with no
 network at all. Cloud backup/multi-device sync (Firebase Auth + Firestore) is available as an
-opt-in feature; see [Cloud sync](#cloud-sync-optional) below.
+opt-in *build*-time feature (skipped entirely with no `google-services.json`); see
+[Cloud sync](#cloud-sync-optional) below. **On a build that does have it configured, signing in
+is required before using the app at all** — there's no "skip and stay local" button on that
+welcome screen. That's a product decision, not a technical one; see the note in that section if
+you'd rather make it optional again.
 
 ## Stack
 
@@ -64,9 +68,25 @@ Cloud sync is off by default and the app never requires it. To turn it on:
    `google-services.json` is present, so the app builds and runs exactly as before if you skip
    all of this.
 
-Without a `google-services.json`, the in-app "Cloud sync" screen (Today → ⋮ → Cloud sync) and the
-first-launch welcome screen just explain that sync isn't configured / skip straight past; nothing
-else in the app is affected.
+Without a `google-services.json`, the in-app "Cloud sync" screen (Today → ⋮ → Cloud sync) explains
+that sync isn't configured and the first-launch welcome screen skips straight past — nothing else
+in the app is affected.
+
+**Login is required once configured.** With a `google-services.json` present, the welcome screen
+has no "skip and stay local" option — the user must sign in or create an account before reaching
+the rest of the app. This is deliberate, not a leftover. To go back to the earlier "sign in
+optional" behavior, restore a `skip()` action in `WelcomeViewModel` that calls `completeGate()`
+and a button for it in `WelcomeScreen`'s `AuthForm` — that's the only place this was removed from.
+
+**Forgot password** sends a real Firebase password-reset link, not the password itself — Firebase
+never has your plaintext password to send (it's never stored anywhere, including by us). This
+works from both the welcome screen and Cloud Sync, in sign-in mode.
+
+**Delete account** (Cloud Sync screen, signed in) deletes the Firebase Auth account and every doc
+under it in Firestore. It does **not** touch the local Room database — habits already on the
+device stay put, since local data and the cloud account are treated as independent by design.
+Firebase requires a *recent* sign-in for account deletion; a stale session surfaces a message
+asking the user to sign in again rather than a raw exception.
 
 **Google sign-in button:** only appears once `R.string.default_web_client_id` exists, which the
 `google-services` plugin only generates once the **Google** provider is enabled in Firebase
@@ -93,6 +113,25 @@ appears both on the welcome screen and the Cloud Sync screen.
   UUID assigned at habit creation instead of the local Room id.
 - Streak-freeze token counts and freeze history are local-only and don't sync — each device
   tracks its own freezes. Habit name, icon, color, frequency, reminder, and category do sync.
+
+## Privacy policy
+
+`PRIVACY_POLICY_URL` in `ui/components/PrivacyPolicyLink.kt` points at a draft policy page
+covering what account sign-in and cloud sync collect. **Before submitting to Play**, two things
+need to be real:
+
+1. **A public URL.** The draft was published as a Claude Artifact, which is private by default —
+   Play Console requires the privacy policy link to be reachable by anyone, no sign-in. Either
+   share that artifact publicly from its share menu, or host the same content on your own domain
+   and point `PRIVACY_POLICY_URL` at that instead.
+2. **A real contact address.** The draft's "Contact" section has a placeholder
+   (`REPLACE-WITH-YOUR-SUPPORT-EMAIL@example.com`) — swap it for an address you actually monitor
+   before publishing the page.
+
+Play's Data Safety form (App content → Data safety) should mirror the same facts: email address
+collected for account creation, habit data collected only if cloud sync is on, no data sold or
+shared with third parties for advertising, and an in-app path to delete both the account and its
+data (Cloud Sync screen → Delete account).
 
 ## A note on this build
 

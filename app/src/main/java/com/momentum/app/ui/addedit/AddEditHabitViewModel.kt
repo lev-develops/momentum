@@ -7,6 +7,7 @@ import com.momentum.app.domain.model.Habit
 import com.momentum.app.domain.model.HabitColor
 import com.momentum.app.domain.model.HabitFrequency
 import com.momentum.app.domain.model.HabitIcon
+import com.momentum.app.domain.model.HabitTemplate
 import java.time.Instant
 import java.time.LocalTime
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -117,6 +118,19 @@ class AddEditHabitViewModel(private val container: AppContainer, private val hab
 
     fun updateCategory(category: String) {
         _uiState.value = _uiState.value.copy(category = category)
+    }
+
+    /** Only meaningful when creating a new habit — prefills every field, but the user can still
+     * change any of them before saving. */
+    fun applyTemplate(template: HabitTemplate) {
+        _uiState.value = _uiState.value.copy(
+            name = template.name,
+            iconKey = template.icon,
+            colorKey = template.color,
+            frequency = template.frequency,
+            targetDaysPerWeek = template.targetDaysPerWeek,
+            category = template.category,
+        )
     }
 
     fun save() {
