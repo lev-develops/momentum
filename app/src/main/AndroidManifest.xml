@@ -9,8 +9,16 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!--
+      SCHEDULE_EXACT_ALARM only (not USE_EXACT_ALARM). USE_EXACT_ALARM is a Play-restricted
+      permission Google reserves for apps whose *core function* is an alarm clock or calendar —
+      declaring it on a habit tracker is a real rejection/suspension risk on review. Habit
+      reminders are exactly what SCHEDULE_EXACT_ALARM's "Alarms & reminders" declaration category
+      is for, and the app already falls back to an inexact alarm (ReminderScheduler.
+      scheduleExactOrInexact) plus a 15-minute self-heal (MaintenanceWorker) when the user hasn't
+      granted it, so nothing breaks even if it's denied.
+    -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application

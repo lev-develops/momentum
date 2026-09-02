@@ -79,11 +79,17 @@ class AccountViewModel(private val container: AppContainer) : ViewModel() {
         _formState.value = _formState.value.copy(isBusy = true, statusMessage = null)
         viewModelScope.launch {
             when (val result = sync.sync()) {
-                is SyncResult.Success -> _formState.value = _formState.value.copy(
-                    isBusy = false,
-                    isError = false,
-                    statusMessage = "Synced ${result.habitCount} habits, ${result.completionCount} completions",
-                )
+                is SyncResult.Success -> {
+                    // Widgets read the DB once when they redraw — nothing else invalidates them
+                    // when data changes underneath via sync, so without this a habit renamed or
+                    // completed on another device stays stale on this device's home screen.
+                    container.refreshWidgets()
+                    _formState.value = _formState.value.copy(
+                        isBusy = false,
+                        isError = false,
+                        statusMessage = "Synced ${result.habitCount} habits, ${result.completionCount} completions",
+                    )
+                }
                 is SyncResult.Failure -> _formState.value = _formState.value.copy(
                     isBusy = false,
                     isError = true,
