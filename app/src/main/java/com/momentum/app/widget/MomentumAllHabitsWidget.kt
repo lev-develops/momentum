@@ -5,6 +5,7 @@ import android.content.res.Configuration
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.action.ActionParameters
@@ -84,8 +85,12 @@ private fun AllHabitsContent(habits: List<Habit>, completedTodayIds: Set<Long>, 
     ) {
         Text(
             text = "Today",
-            style = TextStyle(color = ColorProvider(Color(NeutralTokens.textPrimaryArgb(isDark))), fontWeight = FontWeight.Medium),
-            modifier = GlanceModifier.padding(bottom = 8.dp),
+            style = TextStyle(
+                color = ColorProvider(Color(NeutralTokens.textPrimaryArgb(isDark))),
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp,
+            ),
+            modifier = GlanceModifier.padding(bottom = 10.dp),
         )
         if (habits.isEmpty()) {
             Text(
@@ -107,20 +112,21 @@ private fun HabitRow(habit: Habit, completed: Boolean, isDark: Boolean) {
     Row(
         modifier = GlanceModifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp)
+            .padding(vertical = 8.dp)
             .clickable(actionRunCallback<ToggleAllHabitsAction>(actionParametersOf(HabitIdKey to habit.id))),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        val boxColor = if (completed) {
-            Color(HabitPalette.levelArgb(habit.colorKey, 4, isDark))
-        } else {
-            Color(NeutralTokens.hairlineArgb(isDark))
-        }
-        Box(modifier = GlanceModifier.size(16.dp).background(boxColor)) {}
+        val accent = Color(HabitPalette.levelArgb(habit.colorKey, 4, isDark))
+        val boxColor = if (completed) accent else Color(NeutralTokens.hairlineArgb(isDark))
+        Box(modifier = GlanceModifier.size(22.dp).background(boxColor)) {}
         Text(
             text = habit.name,
-            style = TextStyle(color = ColorProvider(Color(NeutralTokens.textPrimaryArgb(isDark)))),
-            modifier = GlanceModifier.padding(start = 10.dp),
+            style = TextStyle(
+                color = ColorProvider(Color(NeutralTokens.textPrimaryArgb(isDark))),
+                fontWeight = FontWeight.Medium,
+                fontSize = 15.sp,
+            ),
+            modifier = GlanceModifier.padding(start = 12.dp),
         )
     }
 }

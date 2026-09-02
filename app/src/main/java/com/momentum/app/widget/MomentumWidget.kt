@@ -6,6 +6,7 @@ import android.content.res.Configuration
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.Image
@@ -40,17 +41,21 @@ import com.momentum.app.MomentumApplication
 import com.momentum.app.domain.model.Habit
 import com.momentum.app.domain.streak.ContributionGridBuilder
 import com.momentum.app.domain.streak.StreakCalculator
+import com.momentum.app.ui.theme.HabitPalette
 import com.momentum.app.ui.theme.NeutralTokens
 import java.time.LocalDate
 import kotlin.math.floor
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.first
 
-private val CellDp = 8.dp
-private val GapDp = 2.dp
-private val CornerRadiusDp = 2.dp
-private val WidgetPaddingDp = 12.dp
-private val HeaderHeightDp = 20.dp
+// Bigger, rounder cells and a bolder header — chunky "pixel-grid" look (HabitKit-style) rather
+// than the small hairline grid this started as.
+private val CellDp = 11.dp
+private val GapDp = 3.dp
+private val CornerRadiusDp = 4.dp
+private val WidgetPaddingDp = 14.dp
+private val HeaderHeightDp = 40.dp
+private val BadgeSizeDp = 32.dp
 
 private fun isSystemInDarkTheme(context: Context): Boolean {
     val nightMode = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
@@ -107,7 +112,10 @@ private fun EmptyStateContent(appWidgetId: Int, isDark: Boolean) {
     ) {
         Text(
             text = "Tap to choose a habit",
-            style = TextStyle(color = ColorProvider(Color(NeutralTokens.textSecondaryArgb(isDark)))),
+            style = TextStyle(
+                color = ColorProvider(Color(NeutralTokens.textSecondaryArgb(isDark))),
+                fontWeight = FontWeight.Medium,
+            ),
         )
     }
 }
@@ -159,15 +167,22 @@ private fun HabitGridContent(
                 .clickable(actionStartActivity(configureIntent(context, appWidgetId))),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = habit.name,
-                style = TextStyle(color = ColorProvider(Color(NeutralTokens.textPrimaryArgb(isDark))), fontWeight = FontWeight.Medium),
-                modifier = GlanceModifier.defaultWeight(),
-            )
-            Text(
-                text = "$streak day streak",
-                style = TextStyle(color = ColorProvider(Color(NeutralTokens.textSecondaryArgb(isDark)))),
-            )
+            val accent = Color(HabitPalette.levelArgb(habit.colorKey, 4, isDark))
+            Box(modifier = GlanceModifier.size(BadgeSizeDp).background(accent)) {}
+            Column(modifier = GlanceModifier.defaultWeight().padding(start = 10.dp)) {
+                Text(
+                    text = habit.name,
+                    style = TextStyle(
+                        color = ColorProvider(Color(NeutralTokens.textPrimaryArgb(isDark))),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                    ),
+                )
+                Text(
+                    text = "$streak day streak",
+                    style = TextStyle(color = ColorProvider(accent), fontWeight = FontWeight.Medium, fontSize = 12.sp),
+                )
+            }
         }
         Box(
             modifier = GlanceModifier
