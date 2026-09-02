@@ -13,12 +13,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.CircularProgressIndicator
@@ -44,6 +45,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -54,6 +58,9 @@ import com.momentum.app.AppContainer
 import com.momentum.app.domain.model.HabitColor
 import com.momentum.app.domain.model.HabitFrequency
 import com.momentum.app.domain.model.HabitIcon
+import com.momentum.app.domain.model.HabitTemplate
+import com.momentum.app.domain.model.HabitTemplates
+import com.momentum.app.ui.components.displayName
 import com.momentum.app.ui.components.imageVector
 import com.momentum.app.ui.theme.HabitPalette
 import com.momentum.app.ui.theme.LocalMomentumColors
@@ -116,6 +123,11 @@ fun AddEditHabitScreen(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(28.dp),
         ) {
+            if (uiState.isNew) {
+                SectionLabel("Quick start")
+                TemplateRow(onSelect = viewModel::applyTemplate)
+            }
+
             OutlinedTextField(
                 value = uiState.name,
                 onValueChange = { if (it.length <= MAX_HABIT_NAME_LENGTH + 20) viewModel.updateName(it) },
@@ -185,6 +197,41 @@ fun AddEditHabitScreen(
 }
 
 @Composable
+private fun TemplateRow(onSelect: (HabitTemplate) -> Unit) {
+    Row(
+        modifier = Modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        HabitTemplates.all.forEach { template ->
+            TemplateChip(template = template, onClick = { onSelect(template) })
+        }
+    }
+}
+
+@Composable
+private fun TemplateChip(template: HabitTemplate, onClick: () -> Unit) {
+    val colors = LocalMomentumColors.current
+    Column(
+        modifier = Modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(colors.background)
+            .border(1.dp, colors.hairline, RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(
+            imageVector = template.icon.imageVector(),
+            contentDescription = null,
+            tint = HabitPalette.accent(template.color, colors.isDark),
+            modifier = Modifier.size(22.dp),
+        )
+        Text(text = template.name, style = MaterialTheme.typography.labelMedium, color = colors.textPrimary)
+    }
+}
+
+@Composable
 private fun SectionLabel(text: String) {
     val colors = LocalMomentumColors.current
     Text(text = text, style = MaterialTheme.typography.labelLarge, color = colors.textSecondary)
@@ -203,7 +250,8 @@ private fun IconPicker(selected: HabitIcon, onSelect: (HabitIcon) -> Unit) {
                     .clip(CircleShape)
                     .background(if (isSelected) colors.surface else colors.background)
                     .border(1.dp, if (isSelected) colors.textPrimary else colors.hairline, CircleShape)
-                    .clickable { onSelect(icon) },
+                    .selectable(selected = isSelected, onClick = { onSelect(icon) }, role = Role.RadioButton)
+                    .semantics { contentDescription = icon.displayName() },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -236,7 +284,8 @@ private fun ColorPicker(selected: HabitColor, onSelect: (HabitColor) -> Unit) {
                             Modifier
                         },
                     )
-                    .clickable { onSelect(colorKey) },
+                    .selectable(selected = isSelected, onClick = { onSelect(colorKey) }, role = Role.RadioButton)
+                    .semantics { contentDescription = colorKey.displayName() },
                 contentAlignment = Alignment.Center,
             ) {
                 if (isSelected) {
@@ -274,7 +323,10 @@ private fun FrequencyPicker(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                IconButton(onClick = { onTargetChange(targetDaysPerWeek - 1) }) {
+                IconButton(
+                    onClick = { onTargetChange(targetDaysPerWeek - 1) },
+                    modifier = Modifier.semantics { contentDescription = "Decrease target to ${targetDaysPerWeek - 1} days a week" },
+                ) {
                     Text("–", style = MaterialTheme.typography.headlineSmall, color = colors.textPrimary)
                 }
                 Text(
@@ -282,7 +334,10 @@ private fun FrequencyPicker(
                     style = MaterialTheme.typography.bodyLarge,
                     color = colors.textPrimary,
                 )
-                IconButton(onClick = { onTargetChange(targetDaysPerWeek + 1) }) {
+                IconButton(
+                    onClick = { onTargetChange(targetDaysPerWeek + 1) },
+                    modifier = Modifier.semantics { contentDescription = "Increase target to ${targetDaysPerWeek + 1} days a week" },
+                ) {
                     Text("+", style = MaterialTheme.typography.headlineSmall, color = colors.textPrimary)
                 }
             }
@@ -298,7 +353,7 @@ private fun FrequencyChip(label: String, selected: Boolean, onClick: () -> Unit)
             .clip(RoundedCornerShape(20.dp))
             .background(if (selected) colors.surface else colors.background)
             .border(1.dp, if (selected) colors.textPrimary else colors.hairline, RoundedCornerShape(20.dp))
-            .clickable(onClick = onClick)
+            .selectable(selected = selected, onClick = onClick, role = Role.RadioButton)
             .padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
         Text(text = label, style = MaterialTheme.typography.bodyMedium, color = colors.textPrimary)
@@ -326,7 +381,7 @@ private fun CategoryPicker(value: String, suggestions: List<String>, onValueChan
                             .clip(RoundedCornerShape(20.dp))
                             .background(if (isSelected) colors.surface else colors.background)
                             .border(1.dp, if (isSelected) colors.textPrimary else colors.hairline, RoundedCornerShape(20.dp))
-                            .clickable { onValueChange(category) }
+                            .selectable(selected = isSelected, onClick = { onValueChange(category) }, role = Role.RadioButton)
                             .padding(horizontal = 14.dp, vertical = 8.dp),
                     ) {
                         Text(text = category, style = MaterialTheme.typography.bodySmall, color = colors.textPrimary)

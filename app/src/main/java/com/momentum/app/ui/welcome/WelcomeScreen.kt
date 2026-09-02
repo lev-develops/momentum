@@ -30,10 +30,12 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.momentum.app.AppContainer
 import com.momentum.app.ui.components.GoogleSignInButton
+import com.momentum.app.ui.components.PrivacyPolicyLink
 import com.momentum.app.ui.theme.LocalMomentumColors
 
-/** One-time gate shown on first launch: sign in/create an account with cloud sync, or skip and
- * use the app fully offline. Resolves instantly (no UI shown) once the choice is made. */
+/** One-time gate shown on first launch: sign in or create an account before using the app.
+ * Resolves instantly (no UI shown at all) on a build with no Firebase project configured, since
+ * there's nothing to sign in to there. */
 @Composable
 fun WelcomeScreen(container: AppContainer, onDone: () -> Unit) {
     val viewModel: WelcomeViewModel = viewModel(
@@ -65,8 +67,7 @@ fun WelcomeScreen(container: AppContainer, onDone: () -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(text = "Momentum", style = MaterialTheme.typography.headlineMedium, color = colors.textPrimary)
                 Text(
-                    text = "Back up your habits and keep them in sync across devices — or skip " +
-                        "and keep everything on this device only.",
+                    text = "Sign in to back up your habits and keep them in sync across devices.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = colors.textSecondary,
                 )
@@ -82,9 +83,7 @@ fun WelcomeScreen(container: AppContainer, onDone: () -> Unit) {
                 )
             } else {
                 AuthForm(uiState = uiState, viewModel = viewModel)
-                TextButton(onClick = viewModel::skip) {
-                    Text("Skip — use Momentum locally", color = colors.textSecondary)
-                }
+                PrivacyPolicyLink()
             }
         }
     }
@@ -134,6 +133,18 @@ private fun AuthForm(uiState: WelcomeUiState, viewModel: WelcomeViewModel) {
         )
         uiState.errorMessage?.let { message ->
             Text(text = message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
+        uiState.passwordResetStatus?.let { message ->
+            Text(text = message, style = MaterialTheme.typography.bodySmall, color = colors.textPrimary)
+        }
+        if (!uiState.isSignUpMode) {
+            TextButton(
+                onClick = viewModel::forgotPassword,
+                enabled = uiState.email.isNotBlank() && !uiState.isBusy,
+                modifier = Modifier.align(Alignment.End),
+            ) {
+                Text("Forgot password?", color = colors.textSecondary)
+            }
         }
         val canSubmit = uiState.email.isNotBlank() && uiState.password.length >= 6 && !uiState.isBusy
         Button(onClick = viewModel::submit, enabled = canSubmit, modifier = Modifier.fillMaxWidth()) {

@@ -3,6 +3,7 @@ package com.momentum.app.sync
 import android.content.Context
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import kotlinx.coroutines.channels.awaitClose
@@ -80,8 +81,40 @@ class AuthManager(context: Context) {
         Unit
     }
 
+    /**
+     * Firebase never has your plaintext password to send — it's never stored — so this sends a
+     * one-time reset *link* to the account's email instead, the standard/secure "forgot password"
+     * flow. Succeeds even for an email with no account, so this can't be used to probe which
+     * emails are registered.
+     */
+    suspend fun sendPasswordResetEmail(email: String): Result<Unit> = runCatching {
+        val firebaseAuth = auth ?: error("Cloud sync isn't set up yet")
+        firebaseAuth.sendPasswordResetEmail(email.trim()).await()
+        Unit
+    }
+
     fun signOut() {
         auth?.signOut()
+    }
+
+    /**
+     * Deletes the Firebase Auth account itself. Local Room data is untouched — this only removes
+     * the cloud account and (paired with [com.momentum.app.sync.CloudSyncRepository.
+     * deleteAllRemoteData], called first by the caller) the data stored under it, per Play's
+     * account-deletion policy. Firebase requires a *recent* sign-in for this; if the session is
+     * stale it fails with a clear message asking the user to sign in again rather than a raw
+     * exception.
+     */
+    suspend fun deleteAccount(): Result<Unit> {
+        val user = auth?.currentUser ?: return Result.failure(IllegalStateException("Not signed in"))
+        return try {
+            user.delete().await()
+            Result.success(Unit)
+        } catch (e: FirebaseAuthRecentLoginRequiredException) {
+            Result.failure(Exception("For your security, please sign out, sign back in, then try deleting your account again."))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     suspend fun sendEmailVerification(): Result<Unit> = runCatching {

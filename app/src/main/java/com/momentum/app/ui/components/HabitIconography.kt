@@ -18,6 +18,7 @@ import androidx.compose.material.icons.rounded.TrackChanges
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.momentum.app.domain.model.HabitColor
 import com.momentum.app.domain.model.HabitIcon
 
 fun HabitIcon.imageVector(): ImageVector = when (this) {
@@ -37,4 +38,36 @@ fun HabitIcon.imageVector(): ImageVector = when (this) {
     HabitIcon.CODE -> Icons.Rounded.Code
     HabitIcon.PLANT -> Icons.Rounded.Eco
     HabitIcon.STAR -> Icons.Rounded.Star
+}
+
+/** Human-readable label, used as an accessibility [contentDescription] where the icon is the
+ * only cue (e.g. the icon picker) rather than decoration next to visible text. */
+fun HabitIcon.displayName(): String = when (this) {
+    HabitIcon.TARGET -> "Target"
+    HabitIcon.BOOK -> "Book"
+    HabitIcon.DUMBBELL -> "Dumbbell"
+    HabitIcon.WATER_DROP -> "Water drop"
+    HabitIcon.MEDITATION -> "Meditation"
+    HabitIcon.SLEEP -> "Sleep"
+    HabitIcon.RUN -> "Run"
+    HabitIcon.FOOD -> "Food"
+    HabitIcon.MONEY -> "Money"
+    HabitIcon.PENCIL -> "Pencil"
+    HabitIcon.MUSIC -> "Music"
+    HabitIcon.SUN -> "Sun"
+    HabitIcon.HEART -> "Heart"
+    HabitIcon.CODE -> "Code"
+    HabitIcon.PLANT -> "Plant"
+    HabitIcon.STAR -> "Star"
+}
+
+/** Human-readable label for a habit's accent color, used as an accessibility [contentDescription]
+ * on color swatches where color alone would otherwise be the only cue. */
+fun HabitColor.displayName(): String = when (this) {
+    HabitColor.MOSS -> "Moss green"
+    HabitColor.INDIGO -> "Indigo"
+    HabitColor.AMBER -> "Amber"
+    HabitColor.ROSE -> "Rose"
+    HabitColor.TEAL -> "Teal"
+    HabitColor.SLATE -> "Slate gray"
 }

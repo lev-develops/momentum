@@ -53,6 +53,28 @@ class CloudSyncRepository(
         if (!authManager.isConfigured) null else runCatching { FirebaseFirestore.getInstance() }.getOrNull()
     }
 
+    /** Deletes every doc this account owns in Firestore — called before [AuthManager.deleteAccount]
+     * as part of "delete my account", not something exposed on its own. A no-op if cloud sync
+     * isn't configured or nobody's signed in, so it's always safe to call. */
+    suspend fun deleteAllRemoteData(): Result<Unit> {
+        val db = firestore ?: return Result.success(Unit)
+        val uid = authManager.currentUser?.uid ?: return Result.success(Unit)
+        return try {
+            val userDoc = db.collection("users").document(uid)
+            val collections = listOf("habits", "completions", "tombstones")
+            val batch = db.batch()
+            for (collectionName in collections) {
+                userDoc.collection(collectionName).get().await().documents.forEach { doc ->
+                    batch.delete(doc.reference)
+                }
+            }
+            batch.commit().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun sync(): SyncResult {
         val db = firestore ?: return SyncResult.Failure("Cloud sync isn't set up yet")
         val uid = authManager.currentUser?.uid ?: return SyncResult.Failure("Not signed in")
